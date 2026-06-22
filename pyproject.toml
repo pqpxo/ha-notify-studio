@@ -1,0 +1,13 @@
+# version 11
+[project]
+name = "notify-studio"
+version = "0.1.11"
+description = "A Home Assistant HACS integration for composing and auditing rich notifications."
+requires-python = ">=3.13"
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]

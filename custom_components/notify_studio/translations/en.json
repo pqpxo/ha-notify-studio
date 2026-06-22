@@ -1,0 +1,13 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Set up Notify Studio",
+        "description": "Add the Notify Studio sidebar panel to this Home Assistant instance."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Notify Studio is already configured."
+    }
+  }
+}
