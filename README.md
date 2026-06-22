@@ -16,6 +16,12 @@
   <img src="https://img.shields.io/badge/HACS-Custom%20repository-41BDF5?style=flat-square" alt="HACS custom repository">
 </p>
 
+<p align="center">
+  <a href="http://SWAKES.co.uk">SWAKES.co.uk</a>
+  &nbsp;|&nbsp;
+  <a href="https://makes.swakes.co.uk/">Blog</a>
+</p>
+
 > [!WARNING]
 > Notify Studio is under active development. Review generated YAML before adding it to a live automation or script, and take a Home Assistant backup before installing an update.
 
