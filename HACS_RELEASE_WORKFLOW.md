@@ -1,4 +1,4 @@
-<!-- version 2 -->
+<!-- version 1 -->
 
 # HACS Release Workflow
 
@@ -11,14 +11,14 @@ HACS shows a version selector only when this repository has published GitHub **R
 3. Under **Choose a tag**, create a new tag that matches the integration version with a `v` prefix, for example:
 
    ```text
-   v0.1.11
+   v0.1.9
    ```
 
 4. Set the target branch to `main`.
 5. Use a title such as:
 
    ```text
-   Notify Studio v0.1.11
+   Notify Studio v0.1.9
    ```
 
 6. Copy the relevant notes from `CHANGELOG.md`.
@@ -40,11 +40,11 @@ HACS displays the five latest published GitHub Releases plus the repository defa
 For every release, keep these aligned:
 
 ```text
-GitHub release tag                     v0.1.11
-VERSION                                0.1.11
-custom_components/notify_studio/manifest.json  0.1.11
-custom_components/notify_studio/const.py        0.1.11
-panel-src/package.json                          0.1.11
+GitHub release tag                     v0.1.9
+VERSION                                0.1.9
+custom_components/notify_studio/manifest.json  0.1.9
+custom_components/notify_studio/const.py        0.1.9
+panel-src/package.json                          0.1.9
 ```
 
 Create a new GitHub Release only after the matching version has been merged into `main`.

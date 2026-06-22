@@ -1,4 +1,4 @@
-<!-- version 11 -->
+<!-- version 9 -->
 
 <p align="center">
   <img src="custom_components/notify_studio/brand/logo.png" width="230" alt="Notify Studio logo">
@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-0.1.11-242e42?style=flat-square" alt="Version 0.1.11">
+  <img src="https://img.shields.io/badge/version-0.1.9-242e42?style=flat-square" alt="Version 0.1.9">
   <img src="https://img.shields.io/badge/Home%20Assistant-2026.5%2B-41BDF5?style=flat-square&logo=home-assistant&logoColor=white" alt="Home Assistant 2026.5 or newer">
   <img src="https://img.shields.io/badge/HACS-Custom%20repository-41BDF5?style=flat-square" alt="HACS custom repository">
 </p>
@@ -19,8 +19,7 @@
 > [!WARNING]
 > Notify Studio is under active development. Review generated YAML before adding it to a live automation or script, and take a Home Assistant backup before installing an update.
 
-> [!NOTE]
-> **v0.1.11** refines Notifications cards with a cleaner card header, larger entity names, simplified controls, and capitalised editor links.
+> **v0.1.12** refines the Notify Studio controls with Home Assistant theme-aware button borders and more comfortable standard and compact button spacing.
 
 ## What it does
 
@@ -188,7 +187,7 @@ Commit that compiled bundle with every frontend change. HACS distributes reposit
 Use a feature branch for a change, merge it into `main`, then publish a GitHub Release tagged with the matching version, for example:
 
 ```text
-v0.1.11
+v0.1.9
 ```
 
 HACS will detect the published release as an available update. Update the `VERSION` file, integration manifest, package version, changelog, and panel cache query together for each release.

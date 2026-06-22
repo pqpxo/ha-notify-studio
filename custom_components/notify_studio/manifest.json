@@ -6,17 +6,17 @@
     "mobile_app"
   ],
   "codeowners": [
-    "@pqpxo"
+    "@papqxo"
   ],
   "config_flow": true,
   "dependencies": [
     "frontend",
     "panel_custom"
   ],
-  "documentation": "https://github.com/papqxo/ha-notify-studio",
+  "documentation": "https://github.com/pqpxo/ha-notify-studio",
   "integration_type": "service",
   "iot_class": "local_push",
-  "issue_tracker": "https://github.com/papqxo/ha-notify-studio/issues",
+  "issue_tracker": "https://github.com/pqpxo/ha-notify-studio/issues",
   "requirements": [],
-  "version": "0.1.11"
+  "version": "0.1.12"
 }

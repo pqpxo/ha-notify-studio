@@ -1,9 +1,8 @@
-// version 11
+// version 12
 export const panelStyles = `
 .notify-studio {
   --ns-radius: 18px;
   --ns-radius-sm: 12px;
-  --ns-button-outline: rgba(255, 255, 255, 0.92);
   --ns-page-width: 1700px;
   box-sizing: border-box;
   min-height: 100%;
@@ -21,15 +20,15 @@ export const panelStyles = `
 .notify-studio__tabs { display:flex; align-items:center; flex-wrap:wrap; gap:8px; max-width:var(--ns-page-width); margin:0 auto 18px; }
 .notify-studio__tab-buttons { display:flex; flex-wrap:wrap; gap:8px; min-width:0; }
 .notify-studio button { font:inherit; }
-.ns-button { min-height:40px; border:1px solid var(--ns-button-outline); border-radius:12px; padding:0 14px; color:var(--text-primary-color); background:var(--primary-color); box-shadow:var(--ha-card-box-shadow, 0 2px 8px rgba(0,0,0,.12)); cursor:pointer; transition:filter .15s ease, transform .15s ease, background .15s ease; white-space:nowrap; }
+.ns-button { min-height:40px; border:1px solid var(--divider-color); border-radius:12px; padding:0px 20px; color:var(--text-primary-color); background:var(--primary-color); box-shadow:var(--ha-card-box-shadow, 0 2px 8px rgba(0,0,0,.12)); cursor:pointer; transition:filter .15s ease, transform .15s ease, background .15s ease; white-space:nowrap; }
 .ns-button:hover:not(:disabled) { filter:brightness(1.08); transform:translateY(-1px); }
 .ns-button:disabled { opacity:.55; cursor:not-allowed; }
-.ns-button--quiet { background:transparent; color:var(--primary-text-color); border-color:var(--ns-button-outline); }
-.ns-button--tab { background:color-mix(in srgb, var(--card-background-color) 82%, transparent); color:var(--secondary-text-color); border-color:var(--ns-button-outline); }
-.ns-button--tab.is-active { background:color-mix(in srgb, var(--primary-color) 16%, var(--card-background-color)); border-color:var(--ns-button-outline); color:var(--primary-text-color); }
-.ns-button--danger { color:var(--error-color); border-color:var(--ns-button-outline); }
-.ns-button--compact { min-height:32px; padding:0 10px; border-radius:9px; font-size:.82rem; }
-.ns-button--active { background:color-mix(in srgb, var(--primary-color) 16%, var(--card-background-color)); border-color:var(--ns-button-outline); color:var(--primary-text-color); }
+.ns-button--quiet { background:transparent; color:var(--primary-text-color); border-color:var(--divider-color); }
+.ns-button--tab { background:color-mix(in srgb, var(--card-background-color) 82%, transparent); color:var(--secondary-text-color); border-color:var(--divider-color); }
+.ns-button--tab.is-active { background:color-mix(in srgb, var(--primary-color) 16%, var(--card-background-color)); border-color:var(--divider-color); color:var(--primary-text-color); }
+.ns-button--danger { color:var(--error-color); border-color:var(--divider-color); }
+.ns-button--compact { min-height:32px; padding:10px 13px 10px 13px; border-radius:9px; font-size:.82rem; }
+.ns-button--active { background:color-mix(in srgb, var(--primary-color) 16%, var(--card-background-color)); border-color:var(--divider-color); color:var(--primary-text-color); }
 .ns-button-group { display:flex; gap:6px; flex-wrap:wrap; }
 .notify-studio__grid { max-width:var(--ns-page-width); margin:0 auto; display:grid; grid-template-columns:minmax(0, 1.25fr) minmax(320px, .75fr); gap:18px; align-items:start; }
 .notify-studio__side { display:grid; gap:18px; min-width:0; }

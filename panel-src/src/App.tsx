@@ -1,4 +1,4 @@
-// version 11
+// version 12
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { callWs } from "./api";
@@ -30,7 +30,7 @@ interface AppProps {
 }
 
 const EMPTY_PREVIEW: PreviewResponse = { rendered: {}, errors: {} };
-const LOGO_URL = "/notify_studio_static/notify-studio-logo.png?v=0.1.11";
+const LOGO_URL = "/notify_studio_static/notify-studio-logo.png?v=0.1.12";
 
 function slugifyForId(value: string): string {
   return value

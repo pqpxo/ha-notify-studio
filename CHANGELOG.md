@@ -1,13 +1,13 @@
-<!-- version 11 -->
+<!-- version 9 -->
 # Changelog
 
-## 0.1.11 - Notifications card refinement
+## 0.1.12 - Button spacing and theme-border refinement
 
-- Updated `.ns-card__head` padding to `22px 22px 10px`.
-- Removed the per-card View calls control and hidden call-detail panel from Notifications source cards.
-- Increased notification-source entity-card title size by 1px.
-- Updated editor button text to **View Automation** and **View Script**.
-- Renamed the Templates-page **Save current composer** action to **Save Template**.
+- Removed the forced white button-outline custom property. Buttons now use Home Assistant theme divider borders.
+- Increased standard button horizontal padding to `0px 20px`.
+- Updated compact-button padding to `10px 13px 10px 13px`.
+- Updated repository documentation and issue-tracker URLs for `pqpxo/ha-notify-studio`.
+
 
 ## 0.1.9 - Larger header logo
 
