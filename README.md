@@ -63,7 +63,7 @@ Notify Studio brings the fragmented parts of rich Companion notifications into o
 3. Add this repository URL:
 
    ```text
-   https://github.com/papqxo/ha-notify
+   https://github.com/pqpxo/ha-notify-studio
    ```
 
 4. Select **Integration** as the category, then add the repository.
@@ -199,7 +199,7 @@ HACS will detect the published release as an available update. Update the `VERSI
 - [Companion notification basics](https://companion.home-assistant.io/docs/notifications/notifications-basic/)
 - [Companion actionable notifications](https://companion.home-assistant.io/docs/notifications/actionable-notifications/)
 - [HACS custom repositories](https://www.hacs.xyz/docs/faq/custom_repositories/)
-- [Report an issue](https://github.com/papqxo/ha-notify/issues)
+- [Report an issue](https://github.com/pqpxo/ha-notify-studio/issues)
 
 ## License
 
