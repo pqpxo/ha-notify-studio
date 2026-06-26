@@ -1,4 +1,4 @@
-# version 18
+# version 21
 """Persistent per-instance custom categories, areas, and quick controls."""
 
 from __future__ import annotations
@@ -243,8 +243,10 @@ class NotifyStudioCustomGroupStore:
 
         data = await self._async_data()
         favorites = _normalise_favorite_control_keys(requested, data["groups"])
-        if favorites != data["favorite_control_keys"]:
-            await self._store.async_save(self._storage_payload(data["groups"], favorites))
+        # Save every explicit user change immediately. This keeps the selected
+        # quick controls independent from responsive layout calculations in
+        # the browser and ensures they survive a Home Assistant restart.
+        await self._store.async_save(self._storage_payload(data["groups"], favorites))
         return deepcopy(favorites)
 
     async def async_get(self, group_id: str) -> dict[str, Any]:

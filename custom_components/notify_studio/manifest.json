@@ -6,7 +6,7 @@
     "mobile_app"
   ],
   "codeowners": [
-    "@papqxo"
+    "@pqpxo"
   ],
   "config_flow": true,
   "dependencies": [
@@ -18,5 +18,5 @@
   "iot_class": "local_push",
   "issue_tracker": "https://github.com/pqpxo/ha-notify-studio/issues",
   "requirements": [],
-  "version": "0.1.20"
+  "version": "0.1.21"
 }

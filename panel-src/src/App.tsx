@@ -1,4 +1,4 @@
-// version 20
+// version 21
 import { type CSSProperties, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { callWs } from "./api";
@@ -42,7 +42,7 @@ interface CustomGroupControl {
 }
 
 const EMPTY_PREVIEW: PreviewResponse = { rendered: {}, errors: {} };
-const LOGO_URL = "/notify_studio_static/notify-studio-logo.png?v=0.1.20";
+const LOGO_URL = "/notify_studio_static/notify-studio-logo.png?v=0.1.21";
 const QUICK_CONTROL_MIN_WIDTH = 220;
 const QUICK_CONTROL_GAP = 10;
 const QUICK_CONTROL_TOGGLE_WIDTH = 50;
@@ -429,19 +429,10 @@ export default function App({ hass }: AppProps) {
     };
   }, [customGroupControls.length]);
 
-  useEffect(() => {
-    if (!quickControlCapacityMeasured || favoriteCustomGroupControls.length <= quickControlCapacity) return undefined;
-    const retainedKeys = favoriteCustomGroupControls
-      .slice(0, quickControlCapacity)
-      .map((control) => control.key);
-    const timeout = window.setTimeout(() => {
-      void saveFavoriteGroupControls(
-        retainedKeys,
-        "Screen width changed, so excess quick-control favorites were removed.",
-      );
-    }, 250);
-    return () => window.clearTimeout(timeout);
-  }, [favoriteCustomGroupControls, quickControlCapacity, quickControlCapacityMeasured, saveFavoriteGroupControls]);
+  // Saved favourites are a user preference, not a viewport preference. A
+  // narrower browser shows the first controls that fit, but never removes any
+  // saved stars from Home Assistant storage. They return automatically when
+  // the available width increases again.
 
   const createCustomGroup = async () => {
     const activeHass = hassRef.current;
@@ -1318,7 +1309,7 @@ export default function App({ hass }: AppProps) {
     const displayedControls = showAllCustomGroupControls
       ? customGroupControls
       : favoriteCustomGroupControls.length > 0
-        ? favoriteCustomGroupControls
+        ? favoriteCustomGroupControls.slice(0, quickControlCapacity)
         : customGroupControls.slice(0, quickControlCapacity);
     const hasMoreControls = customGroupControls.length > displayedControls.length;
     const gridStyle = {
@@ -1336,7 +1327,7 @@ export default function App({ hass }: AppProps) {
           onClick={() => setShowAllCustomGroupControls((current) => !current)}
           aria-expanded={showAllCustomGroupControls}
           aria-label={showAllCustomGroupControls ? "Collapse quick controls" : "Show all custom group controls"}
-          title={showAllCustomGroupControls ? "Show quick controls" : hasMoreControls ? "Show all controls" : "Choose favorite controls"}
+          title={showAllCustomGroupControls ? "Show quick controls" : hasMoreControls ? "Show all controls" : "Choose favourite controls"}
         >
           {showAllCustomGroupControls ? "⌃" : "⌄"}
         </button>
