@@ -1,4 +1,4 @@
-# version 13
+# version 15
 """Bounded, redacted application log storage for Notify Studio."""
 
 from __future__ import annotations

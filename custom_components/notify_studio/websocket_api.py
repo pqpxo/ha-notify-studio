@@ -1,4 +1,4 @@
-# version 13
+# version 15
 """Admin-only WebSocket API for Notify Studio."""
 
 from __future__ import annotations
@@ -16,22 +16,32 @@ from homeassistant.helpers.template import Template
 from .const import (
     VERSION,
     WS_CLEAR_LOGS,
+    WS_CREATE_CUSTOM_GROUP,
+    WS_DELETE_CUSTOM_GROUP,
     WS_DELETE_TEMPLATE,
     WS_GENERATE_YAML,
     WS_INFO,
     WS_LIST_AUTOMATIONS,
+    WS_LIST_CUSTOM_GROUPS,
     WS_LIST_LOGS,
     WS_LIST_NOTIFIERS,
     WS_LIST_RECENT_PUSH_RUNNABLES,
     WS_LIST_RUNNABLES,
     WS_LIST_TEMPLATES,
     WS_RENDER_PREVIEW,
+    WS_RENAME_CUSTOM_GROUP,
     WS_RUN_RUNNABLE,
     WS_SAVE_TEMPLATE,
     WS_SCAN_NOTIFY_USAGE,
     WS_SEND_TEST,
+    WS_SET_CUSTOM_GROUP_MEMBERSHIPS,
+    WS_TOGGLE_CUSTOM_GROUP,
     WS_TOGGLE_AUTOMATION,
     WS_VALIDATE_PAYLOAD,
+)
+from .custom_group_store import (
+    CustomGroupValidationError,
+    async_get_custom_group_store,
 )
 from .log_store import async_get_log_store
 from .notification_schema import (
@@ -54,6 +64,12 @@ def async_register_commands(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, websocket_list_recent_push_runnables)
     websocket_api.async_register_command(hass, websocket_list_logs)
     websocket_api.async_register_command(hass, websocket_clear_logs)
+    websocket_api.async_register_command(hass, websocket_list_custom_groups)
+    websocket_api.async_register_command(hass, websocket_create_custom_group)
+    websocket_api.async_register_command(hass, websocket_rename_custom_group)
+    websocket_api.async_register_command(hass, websocket_delete_custom_group)
+    websocket_api.async_register_command(hass, websocket_set_custom_group_memberships)
+    websocket_api.async_register_command(hass, websocket_toggle_custom_group)
     websocket_api.async_register_command(hass, websocket_toggle_automation)
     websocket_api.async_register_command(hass, websocket_run_runnable)
     websocket_api.async_register_command(hass, websocket_scan_notify_usage)
@@ -77,6 +93,7 @@ async def websocket_info(
     """Return basic integration state for the frontend."""
     notifiers = await async_list_notifiers(hass)
     templates = await async_get_template_store(hass).async_list()
+    custom_groups = await async_get_custom_group_store(hass).async_list()
     connection.send_result(
         msg["id"],
         {
@@ -84,6 +101,7 @@ async def websocket_info(
             "has_notify_entities": bool(notifiers["entities"]),
             "mobile_app_services": len(notifiers["services"]),
             "template_count": len(templates),
+            "custom_group_count": len(custom_groups),
         },
     )
 
@@ -173,6 +191,244 @@ async def websocket_clear_logs(
     store.clear()
     store.add("info", "logs_cleared", "Application logs cleared.")
     connection.send_result(msg["id"], store.list_entries())
+
+
+
+@websocket_api.websocket_command({vol.Required("type"): WS_LIST_CUSTOM_GROUPS})
+@websocket_api.require_admin
+@websocket_api.async_response
+async def websocket_list_custom_groups(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Return this Home Assistant instance's Notify Studio-only groups."""
+    connection.send_result(msg["id"], await async_get_custom_group_store(hass).async_list())
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): WS_CREATE_CUSTOM_GROUP,
+        vol.Required("name"): str,
+        vol.Required("kind"): vol.In(["category", "area"]),
+    }
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+async def websocket_create_custom_group(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Create one custom Notify Studio category or area."""
+    store = async_get_log_store(hass)
+    try:
+        group = await async_get_custom_group_store(hass).async_create(
+            name=msg["name"],
+            kind=msg["kind"],
+        )
+    except CustomGroupValidationError as err:
+        connection.send_error(msg["id"], "custom_group_invalid", str(err))
+        return
+
+    store.add(
+        "info",
+        "custom_group_created",
+        f'Custom {group["kind"]} "{group["name"]}" created.',
+    )
+    connection.send_result(msg["id"], group)
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): WS_RENAME_CUSTOM_GROUP,
+        vol.Required("group_id"): str,
+        vol.Required("name"): str,
+    }
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+async def websocket_rename_custom_group(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Rename a custom Notify Studio category or area."""
+    store = async_get_log_store(hass)
+    try:
+        group = await async_get_custom_group_store(hass).async_rename(
+            group_id=msg["group_id"],
+            name=msg["name"],
+        )
+    except CustomGroupValidationError as err:
+        connection.send_error(msg["id"], "custom_group_invalid", str(err))
+        return
+
+    store.add(
+        "info",
+        "custom_group_renamed",
+        f'Custom {group["kind"]} renamed to "{group["name"]}".',
+    )
+    connection.send_result(msg["id"], group)
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): WS_DELETE_CUSTOM_GROUP,
+        vol.Required("group_id"): str,
+    }
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+async def websocket_delete_custom_group(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Delete one custom Notify Studio category or area."""
+    store = async_get_log_store(hass)
+    custom_group_store = async_get_custom_group_store(hass)
+    try:
+        group = await custom_group_store.async_get(msg["group_id"])
+        await custom_group_store.async_delete(msg["group_id"])
+    except CustomGroupValidationError as err:
+        connection.send_error(msg["id"], "custom_group_invalid", str(err))
+        return
+
+    store.add(
+        "info",
+        "custom_group_deleted",
+        f'Custom {group["kind"]} "{group["name"]}" deleted.',
+    )
+    connection.send_result(msg["id"], {"id": group["id"]})
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): WS_SET_CUSTOM_GROUP_MEMBERSHIPS,
+        vol.Required("source_key"): str,
+        vol.Required("source_name"): str,
+        vol.Optional("entity_id"): vol.Any(str, None),
+        vol.Required("group_ids"): [str],
+    }
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+async def websocket_set_custom_group_memberships(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Assign an audited source to custom Notify Studio categories and areas."""
+    store = async_get_log_store(hass)
+    try:
+        groups = await async_get_custom_group_store(hass).async_set_source_memberships(
+            source_key=msg["source_key"],
+            source_name=msg["source_name"],
+            entity_id=msg.get("entity_id"),
+            group_ids=list(msg["group_ids"]),
+        )
+    except CustomGroupValidationError as err:
+        connection.send_error(msg["id"], "custom_group_invalid", str(err))
+        return
+
+    store.add(
+        "info",
+        "custom_group_membership_updated",
+        "Custom category and area membership updated.",
+        entity_id=msg.get("entity_id") or None,
+        detail=f'{msg["source_name"]}: {len(msg["group_ids"])} group(s) selected.',
+    )
+    connection.send_result(msg["id"], groups)
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): WS_TOGGLE_CUSTOM_GROUP,
+        vol.Required("group_id"): str,
+        vol.Required("enabled"): bool,
+    }
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+async def websocket_toggle_custom_group(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Enable or disable every currently available automation in a custom group."""
+    log_store = async_get_log_store(hass)
+    try:
+        group = await async_get_custom_group_store(hass).async_get(msg["group_id"])
+    except CustomGroupValidationError as err:
+        connection.send_error(msg["id"], "custom_group_invalid", str(err))
+        return
+
+    automation_ids = sorted(
+        {
+            str(member.get("entity_id"))
+            for member in group.get("members", [])
+            if isinstance(member, Mapping)
+            and isinstance(member.get("entity_id"), str)
+            and str(member["entity_id"]).startswith("automation.")
+        }
+    )
+    if not automation_ids:
+        connection.send_error(
+            msg["id"],
+            "custom_group_no_automations",
+            "This custom category or area does not contain any automation entities.",
+        )
+        return
+
+    action = "turn_on" if msg["enabled"] else "turn_off"
+    changed: list[str] = []
+    skipped: list[str] = []
+    failed: list[dict[str, str]] = []
+
+    for entity_id in automation_ids:
+        if hass.states.get(entity_id) is None:
+            skipped.append(entity_id)
+            continue
+        try:
+            await hass.services.async_call(
+                "automation",
+                action,
+                {"entity_id": entity_id},
+                blocking=True,
+                context=Context(user_id=connection.user.id),
+            )
+        except HomeAssistantError as err:
+            failed.append({"entity_id": entity_id, "error": str(err)})
+        else:
+            changed.append(entity_id)
+
+    state_label = "enabled" if msg["enabled"] else "disabled"
+    if failed:
+        log_store.add(
+            "warning",
+            "custom_group_toggle_partial",
+            f'Custom {group["kind"]} "{group["name"]}" was only partly {state_label}.',
+            detail=f"Changed {len(changed)}, skipped {len(skipped)}, failed {len(failed)} automation(s).",
+        )
+    else:
+        log_store.add(
+            "info",
+            "custom_group_toggled",
+            f'Custom {group["kind"]} "{group["name"]}" {state_label}.',
+            detail=f"Changed {len(changed)}, skipped {len(skipped)} automation(s).",
+        )
+
+    connection.send_result(
+        msg["id"],
+        {
+            "group_id": group["id"],
+            "enabled": msg["enabled"],
+            "changed_entity_ids": changed,
+            "skipped_entity_ids": skipped,
+            "failed": failed,
+        },
+    )
 
 
 @websocket_api.websocket_command(

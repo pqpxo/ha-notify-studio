@@ -1,4 +1,4 @@
-# version 13
+# version 15
 """Set up the Notify Studio custom integration."""
 
 from __future__ import annotations

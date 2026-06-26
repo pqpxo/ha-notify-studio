@@ -1,9 +1,10 @@
-// version 13
+// version 15
 export type Platform = "android" | "ios" | "other" | "unknown";
 export type RunnableKind = "automation" | "script";
 export type ActionRouteType = "event" | "script" | "service" | "uri" | "reply";
 export type ActionHandlerType = "event" | "script" | "service" | "reply";
 export type LogLevel = "info" | "warning" | "error";
+export type CustomGroupKind = "category" | "area";
 
 export interface HassConnection {
   sendMessagePromise<T>(message: Record<string, unknown>): Promise<T>;
@@ -80,6 +81,22 @@ export interface NotificationTemplate {
   updated_at: string;
 }
 
+
+export interface CustomGroupMember {
+  source_key: string;
+  name: string;
+  entity_id: string;
+}
+
+export interface CustomGroup {
+  id: string;
+  name: string;
+  kind: CustomGroupKind;
+  members: CustomGroupMember[];
+  created_at: string;
+  updated_at: string;
+}
+
 export interface PreviewResponse {
   rendered: Partial<Record<"message" | "title", string>>;
   errors: Partial<Record<"message" | "title", string>>;
@@ -152,4 +169,5 @@ export interface InfoResponse {
   has_notify_entities: boolean;
   mobile_app_services: number;
   template_count: number;
+  custom_group_count?: number;
 }

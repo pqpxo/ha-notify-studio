@@ -1,4 +1,4 @@
-# version 7
+# version 15
 """Discover and describe notification targets available to Notify Studio."""
 
 from __future__ import annotations

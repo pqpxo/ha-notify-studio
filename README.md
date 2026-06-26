@@ -1,4 +1,4 @@
-<!-- version 13 -->
+<!-- version 15 -->
 
 <p align="center">
   <img src="custom_components/notify_studio/brand/logo.png" width="230" alt="Notify Studio logo">
@@ -7,28 +7,28 @@
 <h1 align="center">Notify Studio</h1>
 
 <p align="center">
-  Build, test, template, audit, and diagnose rich Home Assistant Companion notifications from one admin-only sidebar panel.
+  Build, test, organise, template, audit, and diagnose rich Home Assistant Companion notifications from one admin-only sidebar panel.
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-0.1.13-242e42?style=flat-square&v=0.1.13" alt="Version 0.1.13">
+  <img src="https://img.shields.io/badge/version-0.1.15-242e42?style=flat-square&v=0.1.15" alt="Version 0.1.15">
   <img src="https://img.shields.io/badge/Home%20Assistant-2026.5%2B-41BDF5?style=flat-square&logo=home-assistant&logoColor=white" alt="Home Assistant 2026.5 or newer">
   <img src="https://img.shields.io/badge/HACS-Custom%20repository-41BDF5?style=flat-square" alt="HACS custom repository">
 </p>
 
 > [!WARNING]
-> Notify Studio is under active development. Review generated YAML before adding it to a live automation or script, and take a Home Assistant backup before installing an update.
+> Notify Studio is under active development. Review generated YAML before using it in a live automation or script, and take a Home Assistant backup before installing an update.
 
-> **v0.1.13** adds an in-panel **Logs** page for diagnostic activity and updates **Run test** so manual automation tests bypass top-level conditions. It also detects and explains single-mode runs that are already active.
+> **v0.1.15** adds per-instance **custom categories and areas**. They are stored only by Notify Studio, can group notification sources independently of Home Assistant's own organisation, and can bulk-enable or bulk-disable their assigned automations.
 
 ## What it does
 
-Notify Studio brings the fragmented parts of rich Companion notifications into one Home Assistant panel. It is built around legacy `notify.mobile_app_<device>` services, which retain the platform-specific Companion payload options that basic notify entities do not provide.
+Notify Studio brings the fragmented parts of rich Companion notifications into a single Home Assistant panel. It uses legacy `notify.mobile_app_<device>` services for the Companion-specific payload fields that standard notify entities do not expose.
 
 | Section | Purpose |
 | --- | --- |
-| **Notifications** | Audit notification calls found in merged YAML. Filter by source type, category, label, and notify device. Review matching runtime details and recent push activity. |
-| **Compose** | Build a platform-aware notification, preview Jinja content live, send a test, save a template, and generate copy-ready YAML. |
+| **Notifications** | Audit notification calls found in merged YAML, organise them with custom Notify Studio categories/areas, bulk-toggle groups, and review recent push activity. |
+| **Compose** | Build a platform-aware notification, preview Jinja content, send a test, save a template, and generate copy-ready YAML. |
 | **Templates** | Create, edit, reuse, and delete saved notification drafts stored inside Home Assistant. |
 | **Logs** | Review recent Notify Studio actions, warnings, and errors, including Run test outcomes. |
 
@@ -40,12 +40,14 @@ Notify Studio brings the fragmented parts of rich Companion notifications into o
 - Safe test sends restricted to discovered Companion notifier services.
 - Reusable templates with immediate loading from the Composer dropdown.
 - Actionable-notification buttons for scripts, Home Assistant actions, URIs, text replies, and custom events.
-- Generated YAML for the notification action and matching `mobile_app_notification_action` handlers where required.
+- Generated YAML for notification actions and matching `mobile_app_notification_action` handlers where required.
 - Merged-YAML auditing across automations, scripts, alerts, and nested action blocks.
-- Notification filters for source type, category, label, and notify device.
-- A separate recent-activity column for notification-related automations and scripts.
+- Filtering by source type, Home Assistant category, Home Assistant label, notify device, and Notify Studio custom group.
+- Per-instance custom **categories** and **areas** for notification sources, separate from Home Assistant's own registries.
+- Equal-width category/area controls that fill the Notifications-page row and can bulk-enable or bulk-disable the automations assigned to each group.
 - Runtime enable/disable controls for matching automation entities and confirmed test runs for automations and scripts.
-- In-memory operational logs for test sends, YAML generation, source scans, template changes, run-test requests, warnings, and backend errors.
+- A separate recent-activity column for notification-related automations and scripts.
+- In-memory operational logs for test sends, YAML generation, source scans, templates, custom-group activity, run-test requests, warnings, and backend errors.
 - No browser-stored access token. The panel uses Home Assistant's authenticated WebSocket connection.
 
 ## Requirements
@@ -75,7 +77,7 @@ Notify Studio brings the fragmented parts of rich Companion notifications into o
 
 ### Manual installation
 
-Copy the `custom_components/notify_studio` directory into your Home Assistant configuration directory:
+Copy `custom_components/notify_studio` to:
 
 ```text
 config/custom_components/notify_studio/
@@ -89,20 +91,37 @@ Restart Home Assistant, then add the integration through **Settings** → **Devi
 
 1. Open **Compose**.
 2. Select a Companion App target.
-3. Enter the title, message, tag, image, URL, and any platform-specific values required.
-4. Use **Send test** to validate and deliver the notification.
-5. Use **Generate YAML** to create the notification action and any matching handler automation.
+3. Enter the title, message, tag, image, URL, and any platform-specific fields required.
+4. Select **Send test** to validate and deliver the notification.
+5. Select **Generate YAML** to create a notification action and any matching handler automation.
 
-The right-hand panel shows a live rendered title/message preview and generated YAML.
+The right-hand panel renders the title/message as you type and shows the generated YAML.
 
 ### Save and reuse a template
 
 1. Build a notification in **Compose**.
 2. Select **Save Template**.
-3. Give the template a name and optional description in **Templates**.
-4. Return to Compose and choose the template from the **Template** dropdown. It loads immediately.
+3. Give it a name and optional description in **Templates**.
+4. Return to Compose and select it from the **Template** dropdown. It loads immediately.
 
 Templates are kept in Notify Studio's Home Assistant storage. They do not alter package YAML or existing automation files.
+
+### Organise notification sources with custom categories and areas
+
+Open **Notifications**, then select **Manage groups**.
+
+1. Create a custom **category** or **area** such as `Security`, `Morning routines`, or `Upstairs`.
+2. Select **Assign groups** on a notification source card.
+3. Choose any custom categories and areas that should contain that source.
+4. The source card displays the assigned Notify Studio groups.
+5. Use the controls above the Notifications panel to bulk-enable or bulk-disable all assigned **automation** entities.
+
+Custom groups are intentionally separate from Home Assistant's native categories, areas, and labels:
+
+- They are stored per Home Assistant instance in Notify Studio storage.
+- They do not rename or change any Home Assistant entity.
+- They can include automation, script, or alert sources.
+- Bulk toggles only affect assigned automation entities. Scripts and alerts are never enabled or disabled by the group control.
 
 ### Add actionable notification buttons
 
@@ -116,16 +135,17 @@ Enable **Actionable notification** in Compose and configure one or more buttons.
 | **Ask for text reply** | Generates a handler that exposes `trigger.event.data.reply_text`. |
 | **Send event only** | Generates a safe starter handler for you to extend. |
 
-Android supports up to three actionable notification buttons. Companion platform support and permissions still apply, so review generated YAML before production use.
+Android supports up to three actionable notification buttons. Platform support and permissions still apply, so review generated YAML before production use.
 
 ### Audit notification sources
 
-Open **Notifications** to scan merged Home Assistant YAML. The left column contains filters and all matching notification sources. The right column contains **Recently triggered push activity** for notification-related automations and scripts.
+Open **Notifications** to scan merged Home Assistant YAML. The left column contains filters and notification source cards. The right column contains **Recently triggered push activity** for notification-related automations and scripts.
 
-For matching runtime entities, an audit card can display:
+For matching runtime entities, a source card can display:
 
 - Last triggered time
-- Category, labels, and discovered notify devices
+- Home Assistant category, labels, and discovered notify devices
+- Notify Studio custom-category and custom-area assignments
 - Enable/disable control for automations
 - A confirmed **Run test** action
 - A confirmed editor shortcut for the matching automation or script
@@ -140,7 +160,7 @@ Open **Logs** after using a Run test button. Notify Studio records whether Home 
 - **Automation disabled**: enable the automation first.
 - **Already running in single mode**: wait for the current run to finish before running another test.
 - **Run test queued**: Home Assistant accepted the request. For automations, top-level conditions are deliberately bypassed so notification actions can be tested reliably.
-- **Service/action error after queueing**: inspect the automation trace or the Home Assistant system logs, as the app can confirm the request was queued but cannot safely wait for long-running automations to finish.
+- **Service/action error after queueing**: inspect the automation trace or Home Assistant system logs. The app can confirm the request was queued but cannot safely wait for long-running automations to finish.
 
 The Logs page keeps the latest 250 application events in memory and clears when Home Assistant restarts. It does not copy the entire Home Assistant system log and it does not record notification payload contents.
 
@@ -160,6 +180,7 @@ Apple-specific options include subtitle, sound, badge, interruption level, and t
 
 - All Notify Studio WebSocket commands require an administrator account.
 - Test sends and run-test controls can trigger real notifications, automations, scripts, and device actions.
+- Custom group bulk toggles can enable or disable several automations at once, and always ask for confirmation.
 - Test sends are restricted to discovered `notify.mobile_app_*` services.
 - Run test deliberately bypasses **top-level automation conditions**. It does not alter the automation configuration.
 - Review all generated YAML, especially actionable-notification handlers that call scripts or Home Assistant actions.
@@ -171,6 +192,7 @@ notify-studio/
 ├── custom_components/notify_studio/
 │   ├── brand/                 # Integration and README logo assets
 │   ├── frontend/              # Compiled panel bundle committed for HACS
+│   ├── custom_group_store.py  # Custom Notify Studio category/area storage
 │   ├── log_store.py           # Bounded in-memory application log
 │   ├── notification_schema.py # Payload validation and YAML generation
 │   ├── notify_scanner.py      # Merged-YAML notification scanner
@@ -195,14 +217,14 @@ The compiled module is written to:
 custom_components/notify_studio/frontend/notify-studio-panel.js
 ```
 
-Commit that built bundle with every frontend source change, as HACS users do not run a build step.
+Commit that bundle with every frontend source change, as HACS users do not run a build step.
 
 ## Versioning and HACS releases
 
-Use GitHub branches and pull requests for changes. After merging a version into `main`, publish a GitHub Release such as `v0.1.13`. HACS uses published releases to offer version selection and rollback.
+Use GitHub branches and pull requests for changes. After merging a version into `main`, publish a GitHub Release such as `v0.1.15`. HACS uses published releases to offer version selection and rollback.
 
 See [HACS_RELEASE_WORKFLOW.md](HACS_RELEASE_WORKFLOW.md) for the release checklist.
 
 ## Support
 
-Open an issue at [pqpxo/ha-notify-studio](https://github.com/pqpxo/ha-notify-studio/issues) with your Home Assistant version, Notify Studio version, browser console errors, and any relevant sanitized log entries from the **Logs** page.
+Open an issue at [pqpxo/ha-notify-studio](https://github.com/pqpxo/ha-notify-studio/issues) with your Home Assistant version, Notify Studio version, browser console errors, and relevant sanitised entries from **Logs**.

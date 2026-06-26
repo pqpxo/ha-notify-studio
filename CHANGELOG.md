@@ -1,5 +1,16 @@
-<!-- version 13 -->
+<!-- version 15 -->
 # Changelog
+
+## 0.1.15 - Custom notification categories and areas
+
+- Added persistent per-instance **custom categories** and **custom areas** for Notification-page sources.
+- Added custom group management with create, rename, delete, and per-source assignment controls.
+- Added a full-width row of equal-width group controls above Notifications. Each control can bulk-enable or bulk-disable its assigned automations after confirmation.
+- Custom group storage is intentionally independent of Home Assistant's own Area, Category, and Label registries.
+- Scripts and alerts can be assigned to custom groups but bulk group toggles only affect automation entities.
+- Added Notify Studio group badges to source cards and a custom-group filter.
+- Added custom group actions to the Notify Studio Logs page.
+- Updated the panel bundle, cache version, metadata, and documentation to `0.1.15`.
 
 ## 0.1.13 - Run-test diagnostics and application logs
 
@@ -10,7 +21,6 @@
 - Updated automation Run test behaviour to bypass top-level conditions, matching Home Assistant's manual trigger behaviour for condition-gated tests.
 - Added clear and level-filter controls for application logs.
 - Detects an already-active `single`-mode automation or script and reports a clear, actionable error instead of silently appearing not to run.
-- Updated version metadata, cache-busting, documentation, and release workflow references to `0.1.13`.
 
 ## 0.1.12 - Button spacing and theme-border refinement
 

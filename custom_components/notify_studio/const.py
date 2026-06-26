@@ -1,11 +1,11 @@
-# version 13
+# version 15
 """Constants for Notify Studio."""
 
 from __future__ import annotations
 
 DOMAIN = "notify_studio"
 NAME = "Notify Studio"
-VERSION = "0.1.13"
+VERSION = "0.1.15"
 
 PANEL_URL_PATH = "notify-studio"
 PANEL_COMPONENT_NAME = "notify-studio-panel"
@@ -18,9 +18,13 @@ DATA_REGISTERED = f"{DOMAIN}_registered"
 DATA_TARGETS = f"{DOMAIN}_targets"
 DATA_TEMPLATE_STORE = f"{DOMAIN}_template_store"
 DATA_LOG_STORE = f"{DOMAIN}_log_store"
+DATA_CUSTOM_GROUP_STORE = f"{DOMAIN}_custom_group_store"
 
 TEMPLATE_STORE_KEY = f"{DOMAIN}.templates"
 TEMPLATE_STORE_VERSION = 1
+
+CUSTOM_GROUP_STORE_KEY = f"{DOMAIN}.custom_groups"
+CUSTOM_GROUP_STORE_VERSION = 1
 
 WS_INFO = f"{DOMAIN}/info"
 WS_LIST_NOTIFIERS = f"{DOMAIN}/list_notifiers"
@@ -29,6 +33,12 @@ WS_LIST_RUNNABLES = f"{DOMAIN}/list_runnables"
 WS_LIST_RECENT_PUSH_RUNNABLES = f"{DOMAIN}/list_recent_push_runnables"
 WS_LIST_LOGS = f"{DOMAIN}/list_logs"
 WS_CLEAR_LOGS = f"{DOMAIN}/clear_logs"
+WS_LIST_CUSTOM_GROUPS = f"{DOMAIN}/list_custom_groups"
+WS_CREATE_CUSTOM_GROUP = f"{DOMAIN}/create_custom_group"
+WS_RENAME_CUSTOM_GROUP = f"{DOMAIN}/rename_custom_group"
+WS_DELETE_CUSTOM_GROUP = f"{DOMAIN}/delete_custom_group"
+WS_SET_CUSTOM_GROUP_MEMBERSHIPS = f"{DOMAIN}/set_custom_group_memberships"
+WS_TOGGLE_CUSTOM_GROUP = f"{DOMAIN}/toggle_custom_group"
 WS_TOGGLE_AUTOMATION = f"{DOMAIN}/toggle_automation"
 WS_RUN_RUNNABLE = f"{DOMAIN}/run_runnable"
 WS_SCAN_NOTIFY_USAGE = f"{DOMAIN}/scan_notify_usage"

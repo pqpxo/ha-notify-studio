@@ -1,4 +1,4 @@
-# version 8
+# version 15
 """Validate Notify Studio payloads and generate copy-ready YAML."""
 
 from __future__ import annotations

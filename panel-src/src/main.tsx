@@ -1,4 +1,4 @@
-// version 2
+// version 15
 import { createRoot, type Root } from "react-dom/client";
 
 import App from "./App";
