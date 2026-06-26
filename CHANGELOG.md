@@ -1,6 +1,12 @@
-<!-- version 24 -->
+<!-- version 25 -->
 
 # Changelog
+
+## 0.1.25 - Save generated automations
+
+- Added **Save Automation** in the Composer’s Preview and YAML panel. It creates a UI-managed Home Assistant automation using the generated notification action, then opens the native Automation Editor so the trigger and conditions can be reviewed or added.
+- Actionable-notification handlers are saved as a separate generated automation when needed, matching Home Assistant’s event-driven Companion notification model.
+- Uses Home Assistant’s authenticated automation configuration endpoint rather than writing files directly, keeping the UI-managed `automations.yaml` workflow intact.
 
 ## 0.1.24 - Favourite control status alignment
 

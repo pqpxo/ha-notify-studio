@@ -1,11 +1,11 @@
-# version 24
+# version 25
 """Constants for Notify Studio."""
 
 from __future__ import annotations
 
 DOMAIN = "notify_studio"
 NAME = "Notify Studio"
-VERSION = "0.1.24"
+VERSION = "0.1.25"
 
 PANEL_URL_PATH = "notify-studio"
 PANEL_COMPONENT_NAME = "notify-studio-panel"

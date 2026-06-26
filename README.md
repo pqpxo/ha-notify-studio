@@ -1,4 +1,4 @@
-<!-- version 24 -->
+<!-- version 25 -->
 
 <p align="center">
   <img src="custom_components/notify_studio/brand/logo.png" width="230" alt="Notify Studio logo">
@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-0.1.24-242e42?style=flat-square&v=0.1.24" alt="Version 0.1.24">
+  <img src="https://img.shields.io/badge/version-0.1.25-242e42?style=flat-square&v=0.1.25" alt="Version 0.1.25">
   <img src="https://img.shields.io/badge/Home%20Assistant-2026.5%2B-41BDF5?style=flat-square&logo=home-assistant&logoColor=white" alt="Home Assistant 2026.5 or newer">
   <img src="https://img.shields.io/badge/HACS-Custom%20repository-41BDF5?style=flat-square" alt="HACS custom repository">
 </p>
@@ -19,7 +19,7 @@
 > [!WARNING]
 > Notify Studio is under active development. Review generated YAML before using it in a live automation or script, and take a Home Assistant backup before installing an update.
 
-> **v0.1.24** refines favourite quick controls with aligned automation labels, increased title spacing, and clear enabled/disabled status indicators.
+> **v0.1.25** adds safe creation of UI-managed Home Assistant automations directly from generated notification actions.
 
 ## What it does
 
@@ -28,15 +28,9 @@ Notify Studio brings the fragmented parts of rich Companion notifications into a
 | Section | Purpose |
 | --- | --- |
 | **Notifications** | Audit notification calls found in merged YAML, organise them with custom Notify Studio categories/areas, bulk-toggle groups, and review recent push activity. |
-| **Compose** | Build a platform-aware notification, preview Jinja content, send a test, save a template, and generate copy-ready YAML. |
+| **Compose** | Build a platform-aware notification, preview Jinja content, send a test, save a template, generate copy-ready YAML, or create a UI-managed automation. |
 | **Templates** | Create, edit, reuse, and delete saved notification drafts stored inside Home Assistant. |
 | **Logs** | Review recent Notify Studio actions, warnings, and errors, including Run test outcomes. |
-
-   
-<details> <summary><strong>Screenshot 1</strong></summary> <br> <p align="center"> <a href="screenshot_1.png"> <img src="screenshot_1.png" alt="Notify Studio screenshot 1" width="100%"> </a> </p> </details>
-
-<details> <summary><strong>Screenshot 2</strong></summary> <br> <p align="center"> <a href="screenshot_2.png"> <img src="screenshot_2.png" alt="Notify Studio screenshot 2" width="100%"> </a> </p> </details>
-   
 
 ## Features
 
@@ -47,6 +41,7 @@ Notify Studio brings the fragmented parts of rich Companion notifications into a
 - Reusable templates with immediate loading from the Composer dropdown.
 - Actionable-notification buttons for scripts, Home Assistant actions, URIs, text replies, and custom events.
 - Generated YAML for notification actions and matching `mobile_app_notification_action` handlers where required.
+- Save generated notification actions as new UI-managed automations, then open Home Assistant’s Automation Editor to add triggers and conditions.
 - Merged-YAML auditing across automations, scripts, alerts, and nested action blocks.
 - Filtering by source type, Home Assistant category, Home Assistant label, notify device, and Notify Studio custom group.
 - Per-instance custom **categories** and **areas** for notification sources, separate from Home Assistant's own registries.
@@ -102,8 +97,19 @@ Restart Home Assistant, then add the integration through **Settings** → **Devi
 3. Enter the title, message, tag, image, URL, and any platform-specific fields required.
 4. Select **Send test** to validate and deliver the notification.
 5. Select **Generate YAML** to create a notification action and any matching handler automation.
+6. In **Preview and YAML**, enter an optional automation name and select **Save Automation** to create a UI-managed automation and open it in the native editor.
 
 The right-hand panel renders the title/message as you type and shows the generated YAML.
+
+
+### Save a generated automation
+
+After selecting **Generate YAML**, use **Save Automation** in the **Preview and YAML** panel. Notify Studio creates a new UI-managed automation with the generated notification action, then opens Home Assistant’s Automation Editor. Add or review the trigger and optional conditions before enabling it.
+
+If the notification includes actionable buttons that need an event handler, Notify Studio also creates a separate handler automation. This is required because Companion action presses arrive as independent `mobile_app_notification_action` events.
+
+> [!NOTE]
+> This creates Home Assistant UI-managed automations. Home Assistant manages `automations.yaml` for UI-created automations; Notify Studio does not directly edit YAML files or package/include files.
 
 ### Save and reuse a template
 
@@ -230,7 +236,7 @@ Commit that bundle with every frontend source change, as HACS users do not run a
 
 ## Versioning and HACS releases
 
-Use GitHub branches and pull requests for changes. After merging a version into `main`, publish a GitHub Release such as `v0.1.24`. HACS uses published releases to offer version selection and rollback.
+Use GitHub branches and pull requests for changes. After merging a version into `main`, publish a GitHub Release such as `v0.1.25`. HACS uses published releases to offer version selection and rollback.
 
 See [HACS_RELEASE_WORKFLOW.md](HACS_RELEASE_WORKFLOW.md) for the release checklist.
 

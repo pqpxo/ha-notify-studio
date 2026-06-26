@@ -1,4 +1,4 @@
-// version 24
+// version 25
 import { type CSSProperties, type ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { callWs } from "./api";
@@ -49,7 +49,7 @@ interface ConfirmationRequest {
 }
 
 const EMPTY_PREVIEW: PreviewResponse = { rendered: {}, errors: {} };
-const LOGO_URL = "/notify_studio_static/notify-studio-logo.png?v=0.1.24";
+const LOGO_URL = "/notify_studio_static/notify-studio-logo.png?v=0.1.25";
 const QUICK_CONTROL_MIN_WIDTH = 170;
 const QUICK_CONTROL_GAP = 10;
 const QUICK_CONTROL_TOGGLE_WIDTH = 50;
@@ -135,6 +135,67 @@ function parseServiceData(value: string): Record<string, unknown> {
   return parsed;
 }
 
+interface UiAutomationConfig {
+  alias: string;
+  description: string;
+  triggers: Record<string, unknown>[];
+  conditions: unknown[];
+  actions: Record<string, unknown>[];
+  mode: "single" | "restart" | "queued" | "parallel";
+  max?: number;
+}
+
+function createAutomationConfigId(alias: string, suffix = ""): string {
+  const base = slugifyForId(alias).toLowerCase() || "notification";
+  const timestamp = Date.now().toString(36);
+  return `notify_studio_${base.slice(0, 34)}${suffix}_${timestamp}`;
+}
+
+function actionHandlerSequence(handler: ActionHandler): Record<string, unknown>[] {
+  if (handler.type === "script") {
+    return [{ action: handler.script_entity_id ?? "script.turn_on" }];
+  }
+  if (handler.type === "service") {
+    return [{
+      action: handler.service ?? "persistent_notification.create",
+      ...(handler.service_data && Object.keys(handler.service_data).length ? { data: handler.service_data } : {}),
+    }];
+  }
+
+  const message = handler.type === "reply"
+    ? "Text reply received for '{{ trigger.event.data.action }}': {{ trigger.event.data.reply_text | default('No reply text returned', true) }}"
+    : "Action '{{ trigger.event.data.action }}' was selected. Replace this generated placeholder action with the required behaviour.";
+
+  return [{
+    action: "persistent_notification.create",
+    data: {
+      title: "Notify Studio action received",
+      message,
+    },
+  }];
+}
+
+function actionHandlerAutomationConfig(alias: string, handlers: ActionHandler[]): UiAutomationConfig {
+  return {
+    alias: `${alias} - Handle Notification Actions`,
+    description: "Generated handler for Notify Studio actionable-notification buttons. Review any placeholder persistent-notification sequence before enabling it.",
+    triggers: handlers.map((handler) => ({
+      trigger: "event",
+      event_type: "mobile_app_notification_action",
+      event_data: { action: handler.action },
+    })),
+    conditions: [],
+    actions: [{
+      choose: handlers.map((handler) => ({
+        conditions: `{{ trigger.event.data.action == ${JSON.stringify(handler.action)} }}`,
+        sequence: actionHandlerSequence(handler),
+      })),
+    }],
+    mode: "parallel",
+    max: 10,
+  };
+}
+
 function runtimeBadgeClass(runnable: RunnableSummary): string {
   return `ns-badge ns-badge--${runnable.status}`;
 }
@@ -214,6 +275,7 @@ export default function App({ hass }: AppProps) {
   const [threadId, setThreadId] = useState("");
   const [preview, setPreview] = useState<PreviewResponse>(EMPTY_PREVIEW);
   const [yaml, setYaml] = useState("");
+  const [automationName, setAutomationName] = useState("");
   const [busy, setBusy] = useState<"test" | "yaml" | "template" | null>(null);
   const [templateName, setTemplateName] = useState("");
   const [templateDescription, setTemplateDescription] = useState("");
@@ -925,6 +987,80 @@ export default function App({ hass }: AppProps) {
     }
   };
 
+  const saveAutomationConfig = async (configId: string, config: UiAutomationConfig): Promise<void> => {
+    const activeHass = hassRef.current;
+    const auth = activeHass?.auth;
+    if (!auth?.fetchWithAuth) {
+      throw new Error("Home Assistant's authenticated automation editor API is unavailable in this browser session. Please refresh Home Assistant and try again.");
+    }
+
+    const response = await auth.fetchWithAuth(
+      `/api/config/automation/config/${encodeURIComponent(configId)}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(config),
+      },
+    );
+
+    if (response.ok) return;
+
+    const detail = (await response.text()).trim();
+    throw new Error(detail || `Home Assistant could not save the automation (HTTP ${response.status}).`);
+  };
+
+  const saveGeneratedAutomation = () => {
+    const target = ensureTarget();
+    if (!target) return;
+    if (!yaml.trim()) {
+      showError(new Error("Generate YAML before saving an automation."), "Generate YAML before saving an automation.");
+      return;
+    }
+
+    let handlers: ActionHandler[];
+    try {
+      handlers = buildActionHandlers();
+    } catch (error) {
+      showError(error, "Check the actionable-notification configuration before saving.");
+      return;
+    }
+
+    const alias = automationName.trim() || `Notify Studio - ${title.trim() || "Notification"}`;
+    const handlerNote = handlers.length
+      ? " A second event-handler automation will also be created for the selected actionable-notification buttons."
+      : "";
+
+    requestConfirmation({
+      title: "Save Automation?",
+      message: `Create “${alias}” in Home Assistant's UI-managed automations.yaml and open it in the Automation Editor? The generated notification action will be saved; add or review its trigger and conditions before enabling it.${handlerNote}`,
+      confirmLabel: "Save Automation",
+      onConfirm: async () => {
+        const primaryId = createAutomationConfigId(alias);
+        const primaryConfig: UiAutomationConfig = {
+          alias,
+          description: "Created by Notify Studio. Add or review a trigger and conditions before enabling this automation.",
+          triggers: [],
+          conditions: [],
+          actions: [{
+            action: `notify.${target.service}`,
+            data: buildPayload(),
+          }],
+          mode: "single",
+        };
+
+        await saveAutomationConfig(primaryId, primaryConfig);
+
+        if (handlers.length) {
+          const handlerId = createAutomationConfigId(alias, "_actions");
+          await saveAutomationConfig(handlerId, actionHandlerAutomationConfig(alias, handlers));
+        }
+
+        announce(`Automation “${alias}” saved to Home Assistant.`);
+        navigateTo(`/config/automation/edit/${encodeURIComponent(primaryId)}`);
+      },
+    });
+  };
+
   const copyYaml = async () => {
     if (!yaml.trim()) {
       showError(new Error("Generate YAML before trying to copy it."), "Generate YAML before trying to copy it.");
@@ -1530,6 +1666,11 @@ export default function App({ hass }: AppProps) {
           <Field label="Rendered message"><pre className="ns-code">{preview.errors.message ? `Error: ${preview.errors.message}` : preview.rendered.message || "No message entered."}</pre></Field>
           <div className="ns-card__head" style={{ padding: "12px 0", border: 0 }}><h3 className="ns-card__title">Generated action</h3><div className="ns-card__actions">{yaml && <button className="ns-button ns-button--tab ns-button--compact" onClick={() => void copyYaml()}>Copy</button>}<button className="ns-button ns-button--tab ns-button--compact" onClick={openAutomations}>Automations</button></div></div>
           <pre className="ns-code">{yaml || "Generate YAML to see a copy-ready action and any matching button handler here."}</pre>
+          {yaml && <section className="ns-save-automation">
+            <Field label="Automation Name"><input value={automationName} onChange={(event) => setAutomationName(event.target.value)} placeholder={`Notify Studio - ${title.trim() || "Notification"}`} /></Field>
+            <p className="ns-help">Save this generated notification as a Home Assistant UI automation. Notify Studio opens the editor afterwards so you can add or review its trigger and conditions.</p>
+            <button type="button" className="ns-button ns-button--tab" onClick={saveGeneratedAutomation}>Save Automation</button>
+          </section>}
         </div></section>
       </aside>
     </section>}

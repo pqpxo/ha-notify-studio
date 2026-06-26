@@ -1,4 +1,4 @@
-// version 18
+// version 25
 export type Platform = "android" | "ios" | "other" | "unknown";
 export type RunnableKind = "automation" | "script";
 export type ActionRouteType = "event" | "script" | "service" | "uri" | "reply";
@@ -10,8 +10,13 @@ export interface HassConnection {
   sendMessagePromise<T>(message: Record<string, unknown>): Promise<T>;
 }
 
+export interface HomeAssistantAuth {
+  fetchWithAuth(input: RequestInfo | URL, init?: RequestInit): Promise<Response>;
+}
+
 export interface HomeAssistant {
   connection: HassConnection;
+  auth?: HomeAssistantAuth;
 }
 
 export interface TargetCapabilities {

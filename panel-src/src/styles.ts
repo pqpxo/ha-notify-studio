@@ -1,4 +1,4 @@
-// version 24
+// version 25
 export const panelStyles = `
 .notify-studio {
   --ns-radius: 18px;
@@ -61,6 +61,9 @@ export const panelStyles = `
 .ns-warning { border-left:3px solid var(--warning-color, #ff9800); padding:9px 11px; margin:10px 0; background:color-mix(in srgb, var(--warning-color, #ff9800) 9%, var(--card-background-color)); border-radius:0 9px 9px 0; color:var(--primary-text-color); font-size:.88rem; line-height:1.4; }
 .ns-warning code { font:500 .82rem/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
 .ns-code { margin:0; max-height:460px; overflow:auto; padding:14px; border-radius:12px; background:var(--code-editor-background-color, #182033); color:var(--code-editor-text-color, #f6f7fb); font:500 .82rem/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space:pre-wrap; }
+.ns-save-automation { display:grid; gap:4px; margin-top:16px; padding:14px; border:1px solid var(--divider-color); border-radius:var(--ns-radius-sm); background:var(--ns-control-background); }
+.ns-save-automation .ns-field { margin-bottom:4px; }
+.ns-save-automation .ns-help { margin:2px 0 8px; }
 .ns-muted { color:var(--secondary-text-color); }
 .ns-badge { display:inline-flex; align-items:center; border-radius:999px; padding:4px 8px; font-size:.73rem; text-transform:uppercase; letter-spacing:.05em; font-weight:700; background:var(--ns-control-background); color:var(--secondary-text-color); }
 .ns-badge--android, .ns-badge--ios, .ns-badge--automation, .ns-badge--script, .ns-badge--running { background:var(--ns-control-background); color:var(--primary-text-color); }

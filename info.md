@@ -1,9 +1,9 @@
-<!-- version 24 -->
+<!-- version 25 -->
 
 # Notify Studio
 
-## v0.1.24 highlights
+## v0.1.25 highlights
 
-- Favourite quick controls now show a small green or red status indicator next to Enabled or Disabled.
-- Automation/script titles and state text align with their custom category/area tags.
-- Extra title spacing improves readability within fixed-height favourite controls.
+- Save a generated notification action as a new UI-managed Home Assistant automation.
+- Notify Studio opens the native editor after creation so you can add a trigger and review conditions.
+- Actionable notification handlers are created as a second automation where required.
