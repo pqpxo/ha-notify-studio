@@ -1,4 +1,12 @@
-<!-- version 18 -->
+<!-- version 19 -->
+
+## 0.1.19 - Uniform quick-control row height
+
+- Set a shared fixed height for every quick-control tile and the expand/collapse control.
+- Made each button fill its grid cell while preserving the one-row default layout.
+- Clamped long control titles and status text so the content remains contained without changing tile height.
+- Updated project metadata, panel cache version, documentation, and release workflow to `0.1.19`.
+
 # Changelog
 
 ## 0.1.18 - Responsive quick-control favourites

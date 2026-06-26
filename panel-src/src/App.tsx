@@ -1,4 +1,4 @@
-// version 18
+// version 19
 import { type CSSProperties, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { callWs } from "./api";
@@ -42,7 +42,7 @@ interface CustomGroupControl {
 }
 
 const EMPTY_PREVIEW: PreviewResponse = { rendered: {}, errors: {} };
-const LOGO_URL = "/notify_studio_static/notify-studio-logo.png?v=0.1.18";
+const LOGO_URL = "/notify_studio_static/notify-studio-logo.png?v=0.1.19";
 const QUICK_CONTROL_MIN_WIDTH = 220;
 const QUICK_CONTROL_GAP = 10;
 const QUICK_CONTROL_TOGGLE_WIDTH = 50;
