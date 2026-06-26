@@ -32,6 +32,10 @@ Notify Studio brings the fragmented parts of rich Companion notifications into a
 | **Templates** | Create, edit, reuse, and delete saved notification drafts stored inside Home Assistant. |
 | **Logs** | Review recent Notify Studio actions, warnings, and errors, including Run test outcomes. |
 
+<details> <summary><strong>Screenshot 1</strong></summary> <br> <p align="center"> <a href="screenshot_1.png"> <img src="screenshot_1.png" alt="Notify Studio screenshot 1" width="100%"> </a> </p> </details>
+
+<details> <summary><strong>Screenshot 2</strong></summary> <br> <p align="center"> <a href="screenshot_2.png"> <img src="screenshot_2.png" alt="Notify Studio screenshot 2" width="100%"> </a> </p> </details>
+
 ## Features
 
 - Dynamic discovery of registered Home Assistant Companion mobile-app services.
