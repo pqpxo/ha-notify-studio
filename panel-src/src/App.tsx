@@ -1,4 +1,4 @@
-// version 15
+// version 16
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { callWs } from "./api";
@@ -34,7 +34,7 @@ interface AppProps {
 }
 
 const EMPTY_PREVIEW: PreviewResponse = { rendered: {}, errors: {} };
-const LOGO_URL = "/notify_studio_static/notify-studio-logo.png?v=0.1.15";
+const LOGO_URL = "/notify_studio_static/notify-studio-logo.png?v=0.1.16";
 
 function slugifyForId(value: string): string {
   return value
@@ -150,9 +150,9 @@ export default function App({ hass }: AppProps) {
   const [customGroupManagerOpen, setCustomGroupManagerOpen] = useState(false);
   const [newCustomGroupName, setNewCustomGroupName] = useState("");
   const [newCustomGroupKind, setNewCustomGroupKind] = useState<CustomGroupKind>("category");
-  const [customGroupBusy, setCustomGroupBusy] = useState<"create" | "membership" | "toggle" | null>(null);
-  const [assignmentItem, setAssignmentItem] = useState<NotifyUsage | null>(null);
-  const [assignmentGroupIds, setAssignmentGroupIds] = useState<string[]>([]);
+  const [customGroupBusy, setCustomGroupBusy] = useState<"create" | "selection" | "toggle" | null>(null);
+  const [selectedCustomGroupId, setSelectedCustomGroupId] = useState<string | null>(null);
+  const [selectedGroupSourceKeys, setSelectedGroupSourceKeys] = useState<string[]>([]);
   const [auditStudioGroupFilter, setAuditStudioGroupFilter] = useState("");
   const [usage, setUsage] = useState<NotifyUsage[] | null>(null);
   const [auditLoading, setAuditLoading] = useState(false);
@@ -402,35 +402,59 @@ export default function App({ hass }: AppProps) {
 
   const sourceKey = (item: NotifyUsage): string => `${item.source}:${item.id}`;
 
-  const openAssignmentDialog = (item: NotifyUsage) => {
-    const selectedGroups = customGroupsBySourceKey.get(sourceKey(item)) ?? [];
-    setAssignmentItem(item);
-    setAssignmentGroupIds(selectedGroups.map((group) => group.id));
+  const activeGroupSelection = selectedCustomGroupId
+    ? customGroups.find((group) => group.id === selectedCustomGroupId) ?? null
+    : null;
+
+  const startCustomGroupSelection = (group: CustomGroup) => {
+    setSelectedCustomGroupId(group.id);
+    setSelectedGroupSourceKeys(group.members.map((member) => member.source_key));
+    announce(`Select notification sources for ${group.kind} “${group.name}”.`);
   };
 
-  const toggleAssignmentGroup = (groupId: string, checked: boolean) => {
-    setAssignmentGroupIds((current) => (
-      checked ? [...new Set([...current, groupId])] : current.filter((item) => item !== groupId)
+  const cancelCustomGroupSelection = () => {
+    setSelectedCustomGroupId(null);
+    setSelectedGroupSourceKeys([]);
+    announce("Custom group selection cancelled.");
+  };
+
+  const toggleSelectedGroupSource = (item: NotifyUsage, selected: boolean) => {
+    const key = sourceKey(item);
+    setSelectedGroupSourceKeys((current) => (
+      selected ? [...new Set([...current, key])] : current.filter((itemKey) => itemKey !== key)
     ));
   };
 
-  const saveCustomGroupMemberships = async () => {
+  const saveCustomGroupSelection = async () => {
     const activeHass = hassRef.current;
-    if (!activeHass || !assignmentItem) return;
+    if (!activeHass || !activeGroupSelection) return;
 
-    setCustomGroupBusy("membership");
+    setCustomGroupBusy("selection");
     try {
-      const groups = await callWs<CustomGroup[]>(activeHass, "notify_studio/set_custom_group_memberships", {
-        source_key: sourceKey(assignmentItem),
-        source_name: assignmentItem.name,
-        entity_id: assignmentItem.runtime?.entity_id ?? null,
-        group_ids: assignmentGroupIds,
+      const currentSources = usage ?? [];
+      const currentSourceKeys = new Set(currentSources.map(sourceKey));
+      const selectedSourceKeys = new Set(selectedGroupSourceKeys);
+      const preservedMembers = activeGroupSelection.members.filter(
+        (member) => !currentSourceKeys.has(member.source_key),
+      );
+      const selectedMembers = currentSources
+        .filter((item) => selectedSourceKeys.has(sourceKey(item)))
+        .map((item) => ({
+          source_key: sourceKey(item),
+          name: item.name,
+          entity_id: item.runtime?.entity_id ?? "",
+        }));
+
+      const groups = await callWs<CustomGroup[]>(activeHass, "notify_studio/set_custom_group_members", {
+        group_id: activeGroupSelection.id,
+        members: [...preservedMembers, ...selectedMembers],
       });
       setCustomGroups(groups);
-      announce(`Custom groups updated for “${assignmentItem.name}”.`);
-      setAssignmentItem(null);
+      announce(`Saved ${selectedMembers.length} notification source${selectedMembers.length === 1 ? "" : "s"} in “${activeGroupSelection.name}”.`);
+      setSelectedCustomGroupId(null);
+      setSelectedGroupSourceKeys([]);
     } catch (error) {
-      showError(error, "Unable to save custom category and area assignments.");
+      showError(error, "Unable to save the selected custom category or area members.");
     } finally {
       setCustomGroupBusy(null);
     }
@@ -1083,11 +1107,19 @@ export default function App({ hass }: AppProps) {
     const notifyDevices = item.notify_devices?.length ? item.notify_devices : item.notifiers;
     const runtime = item.runtime;
     const itemCustomGroups = customGroupsBySourceKey.get(key) ?? [];
+    const isSelectionActive = activeGroupSelection !== null;
+    const isSelectedForActiveGroup = selectedGroupSourceKeys.includes(key);
 
-    return <article className="ns-card ns-audit-card" key={key}>
+    return <article className={`ns-card ns-audit-card ${isSelectionActive ? "is-selectable" : ""}`} key={key}>
       <div className="ns-card__head">
         <div className="ns-row__main"><div className="ns-row__title">{item.name}</div></div>
-        <div className="ns-card__actions"><span className={`ns-badge ns-badge--${item.source === "script" ? "script" : "automation"}`}>{item.source}</span></div>
+        <div className="ns-card__actions">
+          {isSelectionActive && <label className="ns-audit-card__selection" title={`Include ${item.name} in ${activeGroupSelection?.name ?? "this custom group"}`}>
+            <input type="checkbox" checked={isSelectedForActiveGroup} onChange={(event) => toggleSelectedGroupSource(item, event.target.checked)} />
+            <span className="ns-sr-only">Include {item.name} in {activeGroupSelection?.name}</span>
+          </label>}
+          <span className={`ns-badge ns-badge--${item.source === "script" ? "script" : "automation"}`}>{item.source}</span>
+        </div>
       </div>
       <div className="ns-card__body">
         {renderLastTriggered(runtime)}
@@ -1101,7 +1133,6 @@ export default function App({ hass }: AppProps) {
         </div>}
       </div>
       <div className="ns-card__footer">
-        <button className="ns-button ns-button--quiet ns-button--compact" onClick={() => customGroups.length ? openAssignmentDialog(item) : setCustomGroupManagerOpen(true)}>{customGroups.length ? "Assign groups" : "Create groups"}</button>
         {runtime?.kind === "automation" && <button className={`ns-button ns-button--tab ns-button--compact ns-button--state ${runtime.enabled ? "is-enabled" : "is-disabled"}`} onClick={() => void toggleAutomation(runtime, !runtime.enabled)}>{runtime.enabled ? "Enabled" : "Disabled"}</button>}
         {runtime?.supports_run && <button className="ns-button ns-button--quiet ns-button--compact" onClick={() => void runRunnable(runtime)}>Run test</button>}
         {runtime && <button className="ns-button ns-button--quiet ns-button--compact" onClick={() => openRunnableEditor(runtime)}>{runtime.kind === "automation" ? "View Automation" : "View Script"}</button>}
@@ -1112,35 +1143,81 @@ export default function App({ hass }: AppProps) {
   const renderCustomGroupToggleBar = () => {
     if (!customGroups.length) {
       return <section className="ns-custom-group-toolbar" aria-label="Notify Studio custom category and area controls">
-        <button type="button" className="ns-custom-group-toggle ns-custom-group-toggle--create" onClick={() => setCustomGroupManagerOpen(true)}>
-          <span className="ns-custom-group-toggle__title">Create custom categories and areas</span>
-          <span className="ns-custom-group-toggle__meta">Group notification sources without changing Home Assistant’s own organisation.</span>
+        <button type="button" className="ns-custom-group-empty" onClick={() => setCustomGroupManagerOpen(true)}>
+          <span className="ns-custom-group-empty__title">Create custom categories and areas</span>
+          <span className="ns-custom-group-empty__meta">Group notification sources without changing Home Assistant’s own organisation.</span>
         </button>
       </section>;
     }
 
     return <section className="ns-custom-group-toolbar" aria-label="Notify Studio custom category and area controls">
-      <div className="ns-custom-group-toggle-grid">
-        {customGroups.map((group) => {
-          const state = customGroupStates.get(group.id) ?? { automations: 0, enabled: 0, disabled: 0 };
-          const allEnabled = state.automations > 0 && state.enabled === state.automations;
-          const desiredEnabled = !allEnabled;
-          const action = desiredEnabled ? "Enable all" : "Disable all";
-          const members = group.members.length;
-          return <button
-            key={group.id}
-            type="button"
-            className={`ns-custom-group-toggle ns-custom-group-toggle--${group.kind}`}
-            onClick={() => void toggleCustomGroupAutomations(group, desiredEnabled)}
-            disabled={customGroupBusy === "toggle" || state.automations === 0}
-            title={state.automations === 0 ? "Add notification sources with automation entities to use the bulk toggle." : `${action} automations in ${group.name}`}
-          >
-            <span className="ns-custom-group-toggle__title">{group.name}</span>
-            <span className="ns-custom-group-toggle__meta">{group.kind === "category" ? "Custom category" : "Custom area"} · {members} source{members === 1 ? "" : "s"}</span>
-            <strong>{state.automations === 0 ? "No automations" : `${action} · ${state.enabled}/${state.automations} enabled`}</strong>
-          </button>;
-        })}
-      </div>
+      {customGroups.map((group) => {
+        const state = customGroupStates.get(group.id) ?? { automations: 0, enabled: 0, disabled: 0 };
+        const allEnabled = state.automations > 0 && state.enabled === state.automations;
+        const desiredEnabled = !allEnabled;
+        const action = desiredEnabled ? "Enable all" : "Disable all";
+        const label = group.kind === "category" ? "Category" : "Area";
+        const isSelectingThisGroup = activeGroupSelection?.id === group.id;
+        const sortedMembers = [...group.members].sort((left, right) => left.name.localeCompare(right.name));
+
+        return <section className={`ns-custom-group-control ns-custom-group-control--${group.kind}`} key={group.id}>
+          <div className="ns-custom-group-control__head">
+            <div className="ns-custom-group-control__identity">
+              <span className={`ns-custom-group-control__tag ns-custom-group-control__tag--${group.kind}`}>{label}: {group.name}</span>
+              <span>{group.members.length} saved notification source{group.members.length === 1 ? "" : "s"}</span>
+            </div>
+            <button
+              type="button"
+              className={`ns-button ns-button--quiet ns-button--compact ${isSelectingThisGroup ? "ns-button--active" : ""}`}
+              onClick={() => startCustomGroupSelection(group)}
+              disabled={customGroupBusy === "selection"}
+            >
+              {isSelectingThisGroup ? "Selecting entities" : "Select entities"}
+            </button>
+          </div>
+
+          <div className="ns-custom-group-member-grid">
+            <button
+              type="button"
+              className="ns-custom-group-member-button ns-custom-group-member-button--all"
+              onClick={() => void toggleCustomGroupAutomations(group, desiredEnabled)}
+              disabled={customGroupBusy === "toggle" || state.automations === 0}
+              title={state.automations === 0 ? "Add notification sources with automation entities to use this bulk control." : `${action} automations in ${group.name}`}
+            >
+              <span className={`ns-custom-group-member-button__tag ns-custom-group-member-button__tag--${group.kind}`}>{label}: {group.name}</span>
+              <strong>{state.automations === 0 ? "No automations" : action}</strong>
+              <span>{state.automations === 0 ? "Add an automation source" : `All automations · ${state.enabled}/${state.automations} enabled`}</span>
+            </button>
+            {sortedMembers.map((member) => {
+              const runtime = runnableByEntityId.get(member.entity_id);
+              const isAutomation = runtime?.kind === "automation";
+              const memberState = isAutomation ? (runtime.enabled ? "Enabled" : "Disabled") : runtime?.kind === "script" ? "Script" : "Unavailable";
+              return <button
+                type="button"
+                className="ns-custom-group-member-button"
+                key={member.source_key}
+                disabled={!isAutomation}
+                onClick={() => {
+                  if (isAutomation) void toggleAutomation(runtime, !runtime.enabled);
+                }}
+                title={isAutomation ? `Toggle ${member.name}` : runtime?.kind === "script" ? "Scripts do not have an enabled or disabled state." : "This notification source is not currently available as a Home Assistant runtime entity."}
+              >
+                <span className={`ns-custom-group-member-button__tag ns-custom-group-member-button__tag--${group.kind}`}>{label}: {group.name}</span>
+                <strong>{member.name}</strong>
+                <span>{memberState}</span>
+              </button>;
+            })}
+          </div>
+
+          {isSelectingThisGroup && <div className="ns-custom-group-selection">
+            <p>Tick the checkboxes shown in the top-right corner of notification cards below, then save the selected entities for <strong>{group.name}</strong>.</p>
+            <div className="ns-card__actions">
+              <button type="button" className="ns-button ns-button--quiet ns-button--compact" onClick={cancelCustomGroupSelection} disabled={customGroupBusy === "selection"}>Cancel</button>
+              <button type="button" className="ns-button ns-button--tab ns-button--compact" onClick={() => void saveCustomGroupSelection()} disabled={customGroupBusy === "selection"}>{customGroupBusy === "selection" ? "Saving…" : `Save ${selectedGroupSourceKeys.length} ${selectedGroupSourceKeys.length === 1 ? "entity" : "entities"}`}</button>
+            </div>
+          </div>}
+        </section>;
+      })}
     </section>;
   };
 
@@ -1172,30 +1249,7 @@ export default function App({ hass }: AppProps) {
     </section>;
   };
 
-  const renderAssignmentDialog = () => {
-    if (!assignmentItem) return null;
-    const categories = customGroups.filter((group) => group.kind === "category");
-    const areas = customGroups.filter((group) => group.kind === "area");
-    const renderChoices = (kind: CustomGroupKind, groups: CustomGroup[]) => <section className="ns-assignment-dialog__section">
-      <h3>{kind === "category" ? "Custom categories" : "Custom areas"}</h3>
-      {!groups.length && <p className="ns-muted">Create a custom {kind} first, then return here to assign it.</p>}
-      <div className="ns-assignment-dialog__choices">
-        {groups.map((group) => <label className="ns-assignment-choice" key={group.id}><input type="checkbox" checked={assignmentGroupIds.includes(group.id)} onChange={(event) => toggleAssignmentGroup(group.id, event.target.checked)} /><span>{group.name}</span></label>)}
-      </div>
-    </section>;
-
-    return <div className="ns-modal-backdrop" role="presentation" onMouseDown={() => setAssignmentItem(null)}>
-      <section className="ns-card ns-assignment-dialog" role="dialog" aria-modal="true" aria-labelledby="ns-assignment-title" onMouseDown={(event) => event.stopPropagation()}>
-        <div className="ns-card__head"><div><h2 className="ns-card__title" id="ns-assignment-title">Assign custom groups</h2><p className="ns-muted">{assignmentItem.name}</p></div><button type="button" className="ns-button ns-button--quiet ns-button--compact" onClick={() => setAssignmentItem(null)}>Close</button></div>
-        <div className="ns-card__body">
-          <p className="ns-muted">Choose the Notify Studio categories and areas for this notification source. This is stored only in Notify Studio and does not modify Home Assistant’s own organisation.</p>
-          <div className="ns-assignment-dialog__columns">{renderChoices("category", categories)}{renderChoices("area", areas)}</div>
-        </div>
-        <div className="ns-card__footer"><button type="button" className="ns-button ns-button--quiet" onClick={() => setAssignmentItem(null)} disabled={customGroupBusy === "membership"}>Cancel</button><button type="button" className="ns-button ns-button--tab" onClick={() => void saveCustomGroupMemberships()} disabled={customGroupBusy === "membership"}>{customGroupBusy === "membership" ? "Saving…" : "Save groups"}</button></div>
-      </section>
-    </div>;
-  };
-
+  
 
   if (loading) {
     return <main className="notify-studio"><style>{panelStyles}</style><div className="ns-loading">Loading Notify Studio…</div></main>;
@@ -1297,7 +1351,6 @@ export default function App({ hass }: AppProps) {
           </div></section>
         </aside>
       </section>
-      {renderAssignmentDialog()}
     </>}
 
 

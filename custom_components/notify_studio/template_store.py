@@ -1,4 +1,4 @@
-# version 15
+# version 16
 """Persistent, user-managed notification templates for Notify Studio."""
 
 from __future__ import annotations

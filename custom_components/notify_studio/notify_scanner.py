@@ -1,4 +1,4 @@
-# version 15
+# version 16
 """Scan merged Home Assistant YAML for notification usage."""
 
 from __future__ import annotations

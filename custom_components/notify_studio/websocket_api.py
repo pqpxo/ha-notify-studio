@@ -1,4 +1,4 @@
-# version 15
+# version 16
 """Admin-only WebSocket API for Notify Studio."""
 
 from __future__ import annotations
@@ -35,6 +35,7 @@ from .const import (
     WS_SCAN_NOTIFY_USAGE,
     WS_SEND_TEST,
     WS_SET_CUSTOM_GROUP_MEMBERSHIPS,
+    WS_SET_CUSTOM_GROUP_MEMBERS,
     WS_TOGGLE_CUSTOM_GROUP,
     WS_TOGGLE_AUTOMATION,
     WS_VALIDATE_PAYLOAD,
@@ -69,6 +70,7 @@ def async_register_commands(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, websocket_rename_custom_group)
     websocket_api.async_register_command(hass, websocket_delete_custom_group)
     websocket_api.async_register_command(hass, websocket_set_custom_group_memberships)
+    websocket_api.async_register_command(hass, websocket_set_custom_group_members)
     websocket_api.async_register_command(hass, websocket_toggle_custom_group)
     websocket_api.async_register_command(hass, websocket_toggle_automation)
     websocket_api.async_register_command(hass, websocket_run_runnable)
@@ -339,6 +341,50 @@ async def websocket_set_custom_group_memberships(
         entity_id=msg.get("entity_id") or None,
         detail=f'{msg["source_name"]}: {len(msg["group_ids"])} group(s) selected.',
     )
+    connection.send_result(msg["id"], groups)
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): WS_SET_CUSTOM_GROUP_MEMBERS,
+        vol.Required("group_id"): str,
+        vol.Required("members"): [
+            vol.Schema(
+                {
+                    vol.Required("source_key"): str,
+                    vol.Required("name"): str,
+                    vol.Optional("entity_id"): vol.Any(str, None),
+                }
+            )
+        ],
+    }
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+async def websocket_set_custom_group_members(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Replace a custom category or area's selected source members."""
+    store = async_get_log_store(hass)
+    try:
+        groups = await async_get_custom_group_store(hass).async_set_group_members(
+            group_id=msg["group_id"],
+            members=list(msg["members"]),
+        )
+    except CustomGroupValidationError as err:
+        connection.send_error(msg["id"], "custom_group_invalid", str(err))
+        return
+
+    group = next((item for item in groups if item["id"] == msg["group_id"]), None)
+    if group is not None:
+        store.add(
+            "info",
+            "custom_group_members_selected",
+            f'Custom {group["kind"]} "{group["name"]}" members saved.',
+            detail=f'{len(group["members"])} notification source(s) selected.',
+        )
     connection.send_result(msg["id"], groups)
 
 

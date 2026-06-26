@@ -1,5 +1,15 @@
-<!-- version 15 -->
+<!-- version 16 -->
 # Changelog
+
+## 0.1.16 - Custom group member controls
+
+- Reworked custom category and area controls into full-width group sections.
+- Added an overall group enable/disable control plus individual member automation controls for every saved source.
+- Added a custom group tag to every group and member control.
+- Replaced per-source **Assign groups** with **Select entities** on each custom category or area.
+- Added top-right source-card checkboxes and one atomic save action for selecting the members of a custom group.
+- Removed fixed audit-card heights and internal scrolling so notification card content expands naturally.
+- Updated the panel bundle, cache version, metadata, and documentation to `0.1.16`.
 
 ## 0.1.15 - Custom notification categories and areas
 

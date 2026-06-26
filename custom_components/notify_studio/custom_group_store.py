@@ -1,4 +1,4 @@
-# version 15
+# version 16
 """Persistent per-instance custom categories and areas for Notify Studio."""
 
 from __future__ import annotations
@@ -284,6 +284,41 @@ class NotifyStudioCustomGroupStore:
                 changed = True
 
         if changed:
+            await self._store.async_save({"groups": groups})
+        return self._sorted(groups)
+
+
+    async def async_set_group_members(
+        self,
+        *,
+        group_id: str,
+        members: list[Mapping[str, Any]],
+    ) -> list[dict[str, Any]]:
+        """Replace the members of one custom category or area atomically."""
+        group_id = _require_string(group_id, "group_id")
+        if len(members) > 1000:
+            raise CustomGroupValidationError("A custom category or area can contain at most 1000 members.")
+
+        normalised_members: list[dict[str, str]] = []
+        seen_source_keys: set[str] = set()
+        for raw_member in members:
+            member = _normalise_member(raw_member)
+            if member["source_key"] in seen_source_keys:
+                continue
+            seen_source_keys.add(member["source_key"])
+            normalised_members.append(member)
+
+        data = await self._async_data()
+        groups = [deepcopy(item) for item in data["groups"]]
+        index = next((idx for idx, item in enumerate(groups) if item["id"] == group_id), None)
+        if index is None:
+            raise CustomGroupValidationError("The selected custom category or area no longer exists.")
+
+        current = groups[index]
+        if current["members"] != normalised_members:
+            current["members"] = normalised_members
+            current["updated_at"] = _now()
+            groups[index] = current
             await self._store.async_save({"groups": groups})
         return self._sorted(groups)
 
