@@ -1,9 +1,8 @@
-<!-- version 25 -->
+<!-- version 26 -->
 
 # Notify Studio
 
-## v0.1.25 highlights
+## v0.1.26 highlights
 
-- Save a generated notification action as a new UI-managed Home Assistant automation.
-- Notify Studio opens the native editor after creation so you can add a trigger and review conditions.
-- Actionable notification handlers are created as a second automation where required.
+- Save Automation now works across Chrome and Firefox without relying on a browser-only authentication helper.
+- Generated UI-managed automations are validated, saved atomically, and reloaded through Notify Studio's admin-only backend.

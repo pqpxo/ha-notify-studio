@@ -1,6 +1,15 @@
-<!-- version 25 -->
+<!-- version 26 -->
 
 # Changelog
+
+
+## 0.1.26 - Save Automation browser compatibility
+
+- Replaced the browser-only authenticated REST save path with an administrator-only Notify Studio WebSocket command.
+- Save Automation now works in Chrome, Firefox, and Home Assistant sessions where the custom-panel `hass` object does not expose `auth.fetchWithAuth`.
+- Generated primary and actionable-handler automations are validated before an atomic update to Home Assistant's UI-managed `automations.yaml`, then Home Assistant automations are reloaded.
+- The editor opens using Home Assistant frontend routing after a successful save.
+
 
 ## 0.1.25 - Save generated automations
 

@@ -1,11 +1,11 @@
-# version 25
+# version 26
 """Constants for Notify Studio."""
 
 from __future__ import annotations
 
 DOMAIN = "notify_studio"
 NAME = "Notify Studio"
-VERSION = "0.1.25"
+VERSION = "0.1.26"
 
 PANEL_URL_PATH = "notify-studio"
 PANEL_COMPONENT_NAME = "notify-studio-panel"
@@ -19,6 +19,7 @@ DATA_TARGETS = f"{DOMAIN}_targets"
 DATA_TEMPLATE_STORE = f"{DOMAIN}_template_store"
 DATA_LOG_STORE = f"{DOMAIN}_log_store"
 DATA_CUSTOM_GROUP_STORE = f"{DOMAIN}_custom_group_store"
+DATA_AUTOMATION_WRITE_LOCK = f"{DOMAIN}_automation_write_lock"
 
 TEMPLATE_STORE_KEY = f"{DOMAIN}.templates"
 TEMPLATE_STORE_VERSION = 1
@@ -52,6 +53,7 @@ WS_GENERATE_YAML = f"{DOMAIN}/generate_yaml"
 WS_LIST_TEMPLATES = f"{DOMAIN}/list_templates"
 WS_SAVE_TEMPLATE = f"{DOMAIN}/save_template"
 WS_DELETE_TEMPLATE = f"{DOMAIN}/delete_template"
+WS_SAVE_UI_AUTOMATIONS = f"{DOMAIN}/save_ui_automations"
 
 NOTIFY_DOMAIN = "notify"
 MOBILE_APP_SERVICE_PREFIX = "mobile_app_"

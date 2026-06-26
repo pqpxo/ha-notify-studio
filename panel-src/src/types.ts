@@ -1,4 +1,4 @@
-// version 25
+// version 26
 export type Platform = "android" | "ios" | "other" | "unknown";
 export type RunnableKind = "automation" | "script";
 export type ActionRouteType = "event" | "script" | "service" | "uri" | "reply";

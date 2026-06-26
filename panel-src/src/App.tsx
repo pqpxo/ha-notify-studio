@@ -1,4 +1,4 @@
-// version 25
+// version 26
 import { type CSSProperties, type ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { callWs } from "./api";
@@ -49,7 +49,7 @@ interface ConfirmationRequest {
 }
 
 const EMPTY_PREVIEW: PreviewResponse = { rendered: {}, errors: {} };
-const LOGO_URL = "/notify_studio_static/notify-studio-logo.png?v=0.1.25";
+const LOGO_URL = "/notify_studio_static/notify-studio-logo.png?v=0.1.26";
 const QUICK_CONTROL_MIN_WIDTH = 170;
 const QUICK_CONTROL_GAP = 10;
 const QUICK_CONTROL_TOGGLE_WIDTH = 50;
@@ -987,28 +987,6 @@ export default function App({ hass }: AppProps) {
     }
   };
 
-  const saveAutomationConfig = async (configId: string, config: UiAutomationConfig): Promise<void> => {
-    const activeHass = hassRef.current;
-    const auth = activeHass?.auth;
-    if (!auth?.fetchWithAuth) {
-      throw new Error("Home Assistant's authenticated automation editor API is unavailable in this browser session. Please refresh Home Assistant and try again.");
-    }
-
-    const response = await auth.fetchWithAuth(
-      `/api/config/automation/config/${encodeURIComponent(configId)}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(config),
-      },
-    );
-
-    if (response.ok) return;
-
-    const detail = (await response.text()).trim();
-    throw new Error(detail || `Home Assistant could not save the automation (HTTP ${response.status}).`);
-  };
-
   const saveGeneratedAutomation = () => {
     const target = ensureTarget();
     if (!target) return;
@@ -1048,15 +1026,30 @@ export default function App({ hass }: AppProps) {
           mode: "single",
         };
 
-        await saveAutomationConfig(primaryId, primaryConfig);
+        const automations: Array<{ automation_id: string; config: UiAutomationConfig }> = [
+          { automation_id: primaryId, config: primaryConfig },
+        ];
 
         if (handlers.length) {
-          const handlerId = createAutomationConfigId(alias, "_actions");
-          await saveAutomationConfig(handlerId, actionHandlerAutomationConfig(alias, handlers));
+          automations.push({
+            automation_id: createAutomationConfigId(alias, "_actions"),
+            config: actionHandlerAutomationConfig(alias, handlers),
+          });
         }
 
+        const activeHass = hassRef.current;
+        if (!activeHass) {
+          throw new Error("Home Assistant is not connected. Please refresh and try again.");
+        }
+
+        const result = await callWs<{ primary_automation_id: string }>(
+          activeHass,
+          "notify_studio/save_ui_automations",
+          { automations },
+        );
+
         announce(`Automation “${alias}” saved to Home Assistant.`);
-        navigateTo(`/config/automation/edit/${encodeURIComponent(primaryId)}`);
+        navigateTo(`/config/automation/edit/${encodeURIComponent(result.primary_automation_id)}`);
       },
     });
   };

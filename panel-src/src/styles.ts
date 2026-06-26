@@ -1,4 +1,4 @@
-// version 25
+// version 26
 export const panelStyles = `
 .notify-studio {
   --ns-radius: 18px;

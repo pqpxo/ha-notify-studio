@@ -1,4 +1,4 @@
-# version 18
+# version 26
 """Admin-only WebSocket API for Notify Studio."""
 
 from __future__ import annotations
@@ -33,6 +33,7 @@ from .const import (
     WS_RENAME_CUSTOM_GROUP,
     WS_RUN_RUNNABLE,
     WS_SAVE_TEMPLATE,
+    WS_SAVE_UI_AUTOMATIONS,
     WS_SCAN_NOTIFY_USAGE,
     WS_SEND_TEST,
     WS_SET_CUSTOM_GROUP_MEMBERSHIPS,
@@ -42,6 +43,7 @@ from .const import (
     WS_TOGGLE_AUTOMATION,
     WS_VALIDATE_PAYLOAD,
 )
+from .automation_writer import AutomationSaveError, async_save_ui_automations
 from .custom_group_store import (
     CustomGroupValidationError,
     async_get_custom_group_store,
@@ -86,6 +88,7 @@ def async_register_commands(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, websocket_list_templates)
     websocket_api.async_register_command(hass, websocket_save_template)
     websocket_api.async_register_command(hass, websocket_delete_template)
+    websocket_api.async_register_command(hass, websocket_save_ui_automations)
 
 
 @websocket_api.websocket_command({vol.Required("type"): WS_INFO})
@@ -924,6 +927,63 @@ async def websocket_generate_yaml(
     connection.send_result(
         msg["id"],
         {"yaml": yaml_output, "warnings": warnings},
+    )
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): WS_SAVE_UI_AUTOMATIONS,
+        vol.Required("automations"): [
+            {
+                vol.Required("automation_id"): str,
+                vol.Required("config"): dict,
+            }
+        ],
+    }
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+async def websocket_save_ui_automations(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Save generated automations without relying on a browser auth helper."""
+    store = async_get_log_store(hass)
+    automations = msg["automations"]
+    aliases = [
+        str(item["config"].get("alias", item["automation_id"]))
+        for item in automations
+    ]
+
+    try:
+        saved_ids = await async_save_ui_automations(
+            hass,
+            automations,
+            context=Context(user_id=connection.user.id),
+        )
+    except AutomationSaveError as err:
+        store.add(
+            "error",
+            "automation_save_failed",
+            "Generated automation could not be saved.",
+            detail=str(err),
+        )
+        connection.send_error(msg["id"], "automation_save_failed", str(err))
+        return
+
+    store.add(
+        "info",
+        "automation_saved",
+        "Generated automation saved to Home Assistant.",
+        detail=", ".join(aliases),
+    )
+    connection.send_result(
+        msg["id"],
+        {
+            "automation_ids": saved_ids,
+            "primary_automation_id": saved_ids[0],
+        },
     )
 
 

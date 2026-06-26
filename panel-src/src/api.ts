@@ -1,4 +1,4 @@
-// version 16
+// version 26
 import type { HomeAssistant } from "./types";
 
 export async function callWs<T>(
