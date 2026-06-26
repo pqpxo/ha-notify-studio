@@ -1,4 +1,4 @@
-# version 16
+# version 18
 """Admin-only WebSocket API for Notify Studio."""
 
 from __future__ import annotations
@@ -23,6 +23,7 @@ from .const import (
     WS_INFO,
     WS_LIST_AUTOMATIONS,
     WS_LIST_CUSTOM_GROUPS,
+    WS_LIST_CUSTOM_GROUP_FAVORITES,
     WS_LIST_LOGS,
     WS_LIST_NOTIFIERS,
     WS_LIST_RECENT_PUSH_RUNNABLES,
@@ -36,6 +37,7 @@ from .const import (
     WS_SEND_TEST,
     WS_SET_CUSTOM_GROUP_MEMBERSHIPS,
     WS_SET_CUSTOM_GROUP_MEMBERS,
+    WS_SET_CUSTOM_GROUP_FAVORITES,
     WS_TOGGLE_CUSTOM_GROUP,
     WS_TOGGLE_AUTOMATION,
     WS_VALIDATE_PAYLOAD,
@@ -66,11 +68,13 @@ def async_register_commands(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, websocket_list_logs)
     websocket_api.async_register_command(hass, websocket_clear_logs)
     websocket_api.async_register_command(hass, websocket_list_custom_groups)
+    websocket_api.async_register_command(hass, websocket_list_custom_group_favorites)
     websocket_api.async_register_command(hass, websocket_create_custom_group)
     websocket_api.async_register_command(hass, websocket_rename_custom_group)
     websocket_api.async_register_command(hass, websocket_delete_custom_group)
     websocket_api.async_register_command(hass, websocket_set_custom_group_memberships)
     websocket_api.async_register_command(hass, websocket_set_custom_group_members)
+    websocket_api.async_register_command(hass, websocket_set_custom_group_favorites)
     websocket_api.async_register_command(hass, websocket_toggle_custom_group)
     websocket_api.async_register_command(hass, websocket_toggle_automation)
     websocket_api.async_register_command(hass, websocket_run_runnable)
@@ -206,6 +210,51 @@ async def websocket_list_custom_groups(
 ) -> None:
     """Return this Home Assistant instance's Notify Studio-only groups."""
     connection.send_result(msg["id"], await async_get_custom_group_store(hass).async_list())
+
+
+@websocket_api.websocket_command({vol.Required("type"): WS_LIST_CUSTOM_GROUP_FAVORITES})
+@websocket_api.require_admin
+@websocket_api.async_response
+async def websocket_list_custom_group_favorites(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Return saved Notify Studio quick-control favorites."""
+    favorites = await async_get_custom_group_store(hass).async_list_favorite_controls()
+    connection.send_result(msg["id"], favorites)
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): WS_SET_CUSTOM_GROUP_FAVORITES,
+        vol.Required("control_keys"): [str],
+    }
+)
+@websocket_api.require_admin
+@websocket_api.async_response
+async def websocket_set_custom_group_favorites(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Save the ordered list of user-selected quick-control favorites."""
+    store = async_get_log_store(hass)
+    try:
+        favorites = await async_get_custom_group_store(hass).async_set_favorite_controls(
+            list(msg["control_keys"])
+        )
+    except CustomGroupValidationError as err:
+        connection.send_error(msg["id"], "custom_group_invalid", str(err))
+        return
+
+    store.add(
+        "info",
+        "custom_group_favorites_updated",
+        "Quick-control favorites updated.",
+        detail=f"{len(favorites)} favorite control(s) saved.",
+    )
+    connection.send_result(msg["id"], favorites)
 
 
 @websocket_api.websocket_command(

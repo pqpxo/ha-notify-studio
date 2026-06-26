@@ -1,5 +1,5 @@
-// version 17
-import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+// version 18
+import { type CSSProperties, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { callWs } from "./api";
 import { panelStyles } from "./styles";
@@ -9,6 +9,7 @@ import type {
   ComposerAction,
   CustomGroup,
   CustomGroupKind,
+  CustomGroupMember,
   GeneratedYamlResponse,
   HomeAssistant,
   InfoResponse,
@@ -27,12 +28,24 @@ import type {
 } from "./types";
 
 type Tab = "compose" | "audit" | "templates" | "logs";
+type CustomGroupControlKind = "group" | "member";
+
 interface AppProps {
   hass?: HomeAssistant;
 }
 
+interface CustomGroupControl {
+  key: string;
+  type: CustomGroupControlKind;
+  group: CustomGroup;
+  member?: CustomGroupMember;
+}
+
 const EMPTY_PREVIEW: PreviewResponse = { rendered: {}, errors: {} };
-const LOGO_URL = "/notify_studio_static/notify-studio-logo.png?v=0.1.17";
+const LOGO_URL = "/notify_studio_static/notify-studio-logo.png?v=0.1.18";
+const QUICK_CONTROL_MIN_WIDTH = 220;
+const QUICK_CONTROL_GAP = 10;
+const QUICK_CONTROL_TOGGLE_WIDTH = 50;
 
 function slugifyForId(value: string): string {
   return value
@@ -119,6 +132,14 @@ function runtimeBadgeClass(runnable: RunnableSummary): string {
   return `ns-badge ns-badge--${runnable.status}`;
 }
 
+function customGroupControlKey(groupId: string): string {
+  return `${groupId}::group`;
+}
+
+function customGroupMemberControlKey(groupId: string, sourceKey: string): string {
+  return `${groupId}::member::${sourceKey}`;
+}
+
 function logBadgeClass(level: LogLevel): string {
   return `ns-badge ns-badge--log-${level}`;
 }
@@ -144,11 +165,15 @@ export default function App({ hass }: AppProps) {
   const [logLevelFilter, setLogLevelFilter] = useState<"" | LogLevel>("");
   const [templates, setTemplates] = useState<NotificationTemplate[]>([]);
   const [customGroups, setCustomGroups] = useState<CustomGroup[]>([]);
+  const [favoriteGroupControlKeys, setFavoriteGroupControlKeys] = useState<string[]>([]);
+  const [showAllCustomGroupControls, setShowAllCustomGroupControls] = useState(false);
+  const [quickControlCapacity, setQuickControlCapacity] = useState(7);
+  const [quickControlCapacityMeasured, setQuickControlCapacityMeasured] = useState(false);
   const [customGroupsLoading, setCustomGroupsLoading] = useState(false);
   const [customGroupManagerOpen, setCustomGroupManagerOpen] = useState(false);
   const [newCustomGroupName, setNewCustomGroupName] = useState("");
   const [newCustomGroupKind, setNewCustomGroupKind] = useState<CustomGroupKind>("category");
-  const [customGroupBusy, setCustomGroupBusy] = useState<"create" | "selection" | "toggle" | null>(null);
+  const [customGroupBusy, setCustomGroupBusy] = useState<"create" | "selection" | "toggle" | "favorites" | null>(null);
   const [selectedCustomGroupId, setSelectedCustomGroupId] = useState<string | null>(null);
   const [selectedGroupSourceKeys, setSelectedGroupSourceKeys] = useState<string[]>([]);
   const [auditStudioGroupFilter, setAuditStudioGroupFilter] = useState("");
@@ -189,6 +214,7 @@ export default function App({ hass }: AppProps) {
   const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
   const [liveMessage, setLiveMessage] = useState("");
   const previewRequestRef = useRef(0);
+  const quickControlsPanelRef = useRef<HTMLDivElement | null>(null);
 
   const selectedTarget = useMemo(
     () => targets.find((target) => target.id === selectedTargetId) ?? null,
@@ -242,6 +268,30 @@ export default function App({ hass }: AppProps) {
     return states;
   }, [customGroups, runnableByEntityId]);
 
+  const customGroupControls = useMemo<CustomGroupControl[]>(() => customGroups.flatMap((group) => [
+    { key: customGroupControlKey(group.id), type: "group" as const, group },
+    ...[...group.members]
+      .sort((left, right) => left.name.localeCompare(right.name))
+      .map((member) => ({
+        key: customGroupMemberControlKey(group.id, member.source_key),
+        type: "member" as const,
+        group,
+        member,
+      })),
+  ]), [customGroups]);
+
+  const customGroupControlsByKey = useMemo(
+    () => new Map(customGroupControls.map((control) => [control.key, control])),
+    [customGroupControls],
+  );
+
+  const favoriteCustomGroupControls = useMemo(
+    () => favoriteGroupControlKeys
+      .map((key) => customGroupControlsByKey.get(key))
+      .filter((control): control is CustomGroupControl => control !== undefined),
+    [customGroupControlsByKey, favoriteGroupControlKeys],
+  );
+
   const auditFilterOptions = useMemo(() => {
     const categories = new Set<string>();
     const labels = new Set<string>();
@@ -284,18 +334,20 @@ export default function App({ hass }: AppProps) {
   const loadCore = useCallback(async () => {
     const activeHass = hassRef.current;
     if (!activeHass) return;
-    const [nextInfo, notifierResult, runnableResult, templateResult, customGroupResult] = await Promise.all([
+    const [nextInfo, notifierResult, runnableResult, templateResult, customGroupResult, favoriteResult] = await Promise.all([
       callWs<InfoResponse>(activeHass, "notify_studio/info"),
       callWs<NotifierResponse>(activeHass, "notify_studio/list_notifiers"),
       callWs<RunnableSummary[]>(activeHass, "notify_studio/list_runnables"),
       callWs<NotificationTemplate[]>(activeHass, "notify_studio/list_templates"),
       callWs<CustomGroup[]>(activeHass, "notify_studio/list_custom_groups"),
+      callWs<string[]>(activeHass, "notify_studio/list_custom_group_favorites"),
     ]);
     setInfo(nextInfo);
     setTargets(notifierResult.services);
     setRunnables(runnableResult);
     setTemplates(templateResult);
     setCustomGroups(customGroupResult);
+    setFavoriteGroupControlKeys(favoriteResult);
   }, []);
 
   const loadCustomGroups = useCallback(async () => {
@@ -303,13 +355,93 @@ export default function App({ hass }: AppProps) {
     if (!activeHass) return;
     setCustomGroupsLoading(true);
     try {
-      setCustomGroups(await callWs<CustomGroup[]>(activeHass, "notify_studio/list_custom_groups"));
+      const [groups, favorites] = await Promise.all([
+        callWs<CustomGroup[]>(activeHass, "notify_studio/list_custom_groups"),
+        callWs<string[]>(activeHass, "notify_studio/list_custom_group_favorites"),
+      ]);
+      setCustomGroups(groups);
+      setFavoriteGroupControlKeys(favorites);
     } catch (error) {
       showError(error, "Unable to load Notify Studio custom categories and areas.");
     } finally {
       setCustomGroupsLoading(false);
     }
   }, [showError]);
+
+  const saveFavoriteGroupControls = useCallback(async (
+    controlKeys: string[],
+    successMessage?: string,
+  ) => {
+    const activeHass = hassRef.current;
+    if (!activeHass) return;
+    setCustomGroupBusy("favorites");
+    try {
+      const favorites = await callWs<string[]>(
+        activeHass,
+        "notify_studio/set_custom_group_favorites",
+        { control_keys: controlKeys },
+      );
+      setFavoriteGroupControlKeys(favorites);
+      if (successMessage) announce(successMessage);
+    } catch (error) {
+      showError(error, "Unable to save quick-control favorites.");
+    } finally {
+      setCustomGroupBusy(null);
+    }
+  }, [announce, showError]);
+
+  const toggleFavoriteGroupControl = (controlKey: string) => {
+    const current = favoriteGroupControlKeys.filter((key) => customGroupControlsByKey.has(key));
+    const isFavorite = current.includes(controlKey);
+    if (!isFavorite && current.length >= quickControlCapacity) {
+      announce(`Only ${quickControlCapacity} favorite control${quickControlCapacity === 1 ? "" : "s"} fit in the quick row. Remove a star first.`);
+      return;
+    }
+    const next = isFavorite
+      ? current.filter((key) => key !== controlKey)
+      : [...current, controlKey];
+    void saveFavoriteGroupControls(next, isFavorite ? "Quick control removed from favorites." : "Quick control added to favorites.");
+  };
+
+  useEffect(() => {
+    const element = quickControlsPanelRef.current;
+    if (!element || !customGroupControls.length) return undefined;
+
+    const updateCapacity = () => {
+      const width = element.getBoundingClientRect().width;
+      const isMobile = window.matchMedia("(max-width: 700px)").matches;
+      const availableWidth = Math.max(1, width - QUICK_CONTROL_TOGGLE_WIDTH - QUICK_CONTROL_GAP);
+      const desktopCapacity = Math.max(
+        1,
+        Math.floor((availableWidth + QUICK_CONTROL_GAP) / (QUICK_CONTROL_MIN_WIDTH + QUICK_CONTROL_GAP)),
+      );
+      setQuickControlCapacity(isMobile ? 7 : desktopCapacity);
+      setQuickControlCapacityMeasured(true);
+    };
+
+    updateCapacity();
+    const observer = new ResizeObserver(updateCapacity);
+    observer.observe(element);
+    window.addEventListener("resize", updateCapacity);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", updateCapacity);
+    };
+  }, [customGroupControls.length]);
+
+  useEffect(() => {
+    if (!quickControlCapacityMeasured || favoriteCustomGroupControls.length <= quickControlCapacity) return undefined;
+    const retainedKeys = favoriteCustomGroupControls
+      .slice(0, quickControlCapacity)
+      .map((control) => control.key);
+    const timeout = window.setTimeout(() => {
+      void saveFavoriteGroupControls(
+        retainedKeys,
+        "Screen width changed, so excess quick-control favorites were removed.",
+      );
+    }, 250);
+    return () => window.clearTimeout(timeout);
+  }, [favoriteCustomGroupControls, quickControlCapacity, quickControlCapacityMeasured, saveFavoriteGroupControls]);
 
   const createCustomGroup = async () => {
     const activeHass = hassRef.current;
@@ -366,6 +498,7 @@ export default function App({ hass }: AppProps) {
     try {
       await callWs<{ id: string }>(activeHass, "notify_studio/delete_custom_group", { group_id: group.id });
       setCustomGroups((current) => current.filter((item) => item.id !== group.id));
+      setFavoriteGroupControlKeys((current) => current.filter((key) => !key.startsWith(`${group.id}::`)));
       if (auditStudioGroupFilter === group.id) setAuditStudioGroupFilter("");
       announce(`Custom ${group.kind} “${group.name}” deleted.`);
     } catch (error) {
@@ -423,6 +556,8 @@ export default function App({ hass }: AppProps) {
         members: [...preservedMembers, ...selectedMembers],
       });
       setCustomGroups(groups);
+      const favorites = await callWs<string[]>(activeHass, "notify_studio/list_custom_group_favorites");
+      setFavoriteGroupControlKeys(favorites);
       announce(`Saved ${selectedMembers.length} notification source${selectedMembers.length === 1 ? "" : "s"} in “${activeGroupSelection.name}”.`);
       setSelectedCustomGroupId(null);
       setSelectedGroupSourceKeys([]);
@@ -1113,6 +1248,63 @@ export default function App({ hass }: AppProps) {
     </article>;
   };
 
+  const renderCustomGroupControl = (control: CustomGroupControl) => {
+    const label = control.group.kind === "category" ? "Category" : "Area";
+    const isFavorite = favoriteGroupControlKeys.includes(control.key);
+    const cannotAddFavorite = !isFavorite && favoriteCustomGroupControls.length >= quickControlCapacity;
+    const groupState = customGroupStates.get(control.group.id) ?? { automations: 0, enabled: 0, disabled: 0 };
+    const isGroupControl = control.type === "group";
+    const runtime = control.member ? runnableByEntityId.get(control.member.entity_id) : undefined;
+    const allEnabled = groupState.automations > 0 && groupState.enabled === groupState.automations;
+    const desiredEnabled = !allEnabled;
+    const title = isGroupControl
+      ? (groupState.automations === 0 ? "No automations" : desiredEnabled ? "Enable all" : "Disable all")
+      : control.member?.name ?? "Notification source";
+    const status = isGroupControl
+      ? (groupState.automations === 0 ? "Add an automation source" : `All automations · ${groupState.enabled}/${groupState.automations} enabled`)
+      : runtime?.kind === "automation"
+        ? (runtime.enabled ? "Enabled" : "Disabled")
+        : runtime?.kind === "script"
+          ? "Script"
+          : "Unavailable";
+    const isToggleable = isGroupControl
+      ? groupState.automations > 0
+      : runtime?.kind === "automation";
+
+    return <article className="ns-custom-group-member-control" key={control.key}>
+      <button
+        type="button"
+        className={`ns-custom-group-member-button ${isGroupControl ? "ns-custom-group-member-button--all" : ""}`}
+        disabled={!isToggleable || customGroupBusy === "toggle"}
+        onClick={() => {
+          if (isGroupControl) {
+            void toggleCustomGroupAutomations(control.group, desiredEnabled);
+          } else if (runtime?.kind === "automation") {
+            void toggleAutomation(runtime, !runtime.enabled);
+          }
+        }}
+        title={isToggleable
+          ? (isGroupControl ? `${title} automations in ${control.group.name}` : `Toggle ${title}`)
+          : runtime?.kind === "script" ? "Scripts do not have an enabled or disabled state." : "This notification source is not currently available as a Home Assistant runtime entity."}
+      >
+        <span className={`ns-custom-group-member-button__tag ns-custom-group-member-button__tag--${control.group.kind}`}>{label}: {control.group.name}</span>
+        <strong>{title}</strong>
+        <span>{status}</span>
+      </button>
+      <button
+        type="button"
+        className={`ns-custom-group-favorite ${isFavorite ? "is-favorite" : ""}`}
+        onClick={() => toggleFavoriteGroupControl(control.key)}
+        disabled={customGroupBusy === "favorites" || cannotAddFavorite}
+        aria-pressed={isFavorite}
+        aria-label={isFavorite ? `Remove ${title} from quick controls` : `Add ${title} to quick controls`}
+        title={cannotAddFavorite ? `Quick row is full. Remove a star before adding another favorite.` : isFavorite ? "Remove from quick controls" : "Add to quick controls"}
+      >
+        {isFavorite ? "★" : "☆"}
+      </button>
+    </article>;
+  };
+
   const renderCustomGroupToggleBar = () => {
     if (!customGroups.length) {
       return <section className="ns-custom-group-toolbar" aria-label="Notify Studio custom category and area controls">
@@ -1123,53 +1315,31 @@ export default function App({ hass }: AppProps) {
       </section>;
     }
 
+    const displayedControls = showAllCustomGroupControls
+      ? customGroupControls
+      : favoriteCustomGroupControls.length > 0
+        ? favoriteCustomGroupControls
+        : customGroupControls.slice(0, quickControlCapacity);
+    const hasMoreControls = customGroupControls.length > displayedControls.length;
+    const gridStyle = {
+      "--ns-quick-control-columns": String(Math.max(1, displayedControls.length)),
+    } as CSSProperties;
+
     return <section className="ns-custom-group-toolbar" aria-label="Notify Studio custom category and area controls">
-      <div className="ns-custom-group-control-panel">
-        <div className="ns-custom-group-member-grid">
-          {customGroups.flatMap((group) => {
-            const state = customGroupStates.get(group.id) ?? { automations: 0, enabled: 0, disabled: 0 };
-            const allEnabled = state.automations > 0 && state.enabled === state.automations;
-            const desiredEnabled = !allEnabled;
-            const action = desiredEnabled ? "Enable all" : "Disable all";
-            const label = group.kind === "category" ? "Category" : "Area";
-            const sortedMembers = [...group.members].sort((left, right) => left.name.localeCompare(right.name));
-
-            const groupButton = <button
-              type="button"
-              className="ns-custom-group-member-button ns-custom-group-member-button--all"
-              key={`${group.id}:all`}
-              onClick={() => void toggleCustomGroupAutomations(group, desiredEnabled)}
-              disabled={customGroupBusy === "toggle" || state.automations === 0}
-              title={state.automations === 0 ? "Add notification sources with automation entities to use this bulk control." : `${action} automations in ${group.name}`}
-            >
-              <span className={`ns-custom-group-member-button__tag ns-custom-group-member-button__tag--${group.kind}`}>{label}: {group.name}</span>
-              <strong>{state.automations === 0 ? "No automations" : action}</strong>
-              <span>{state.automations === 0 ? "Add an automation source" : `All automations · ${state.enabled}/${state.automations} enabled`}</span>
-            </button>;
-
-            const memberButtons = sortedMembers.map((member) => {
-              const runtime = runnableByEntityId.get(member.entity_id);
-              const isAutomation = runtime?.kind === "automation";
-              const memberState = isAutomation ? (runtime.enabled ? "Enabled" : "Disabled") : runtime?.kind === "script" ? "Script" : "Unavailable";
-              return <button
-                type="button"
-                className="ns-custom-group-member-button"
-                key={`${group.id}:${member.source_key}`}
-                disabled={!isAutomation}
-                onClick={() => {
-                  if (isAutomation) void toggleAutomation(runtime, !runtime.enabled);
-                }}
-                title={isAutomation ? `Toggle ${member.name}` : runtime?.kind === "script" ? "Scripts do not have an enabled or disabled state." : "This notification source is not currently available as a Home Assistant runtime entity."}
-              >
-                <span className={`ns-custom-group-member-button__tag ns-custom-group-member-button__tag--${group.kind}`}>{label}: {group.name}</span>
-                <strong>{member.name}</strong>
-                <span>{memberState}</span>
-              </button>;
-            });
-
-            return [groupButton, ...memberButtons];
-          })}
+      <div className="ns-custom-group-control-panel" ref={quickControlsPanelRef}>
+        <div className={`ns-custom-group-member-grid ${showAllCustomGroupControls ? "is-expanded" : ""}`} style={gridStyle}>
+          {displayedControls.map(renderCustomGroupControl)}
         </div>
+        <button
+          type="button"
+          className={`ns-custom-group-expand ${showAllCustomGroupControls ? "is-expanded" : ""}`}
+          onClick={() => setShowAllCustomGroupControls((current) => !current)}
+          aria-expanded={showAllCustomGroupControls}
+          aria-label={showAllCustomGroupControls ? "Collapse quick controls" : "Show all custom group controls"}
+          title={showAllCustomGroupControls ? "Show quick controls" : hasMoreControls ? "Show all controls" : "Choose favorite controls"}
+        >
+          {showAllCustomGroupControls ? "⌃" : "⌄"}
+        </button>
       </div>
     </section>;
   };

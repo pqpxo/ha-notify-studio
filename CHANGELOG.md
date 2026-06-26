@@ -1,5 +1,15 @@
-<!-- version 17 -->
+<!-- version 18 -->
 # Changelog
+
+## 0.1.18 - Responsive quick-control favourites
+
+- Added persistent favorites for bulk category/area controls and individual grouped automation controls.
+- The custom control panel now shows one responsive quick-control row by default, with an expand/collapse button to reveal all saved controls.
+- Added a star button in the top-right of every control card for pinning or removing a favorite.
+- Favorite selection is capped to the number of controls that fit the available desktop width; trailing favorites are automatically removed when a narrower viewport cannot fit them.
+- On mobile, up to seven favorites remain in one horizontally swipeable row.
+- Added secure admin-only WebSocket commands and local storage for quick-control favorite order.
+- Updated the panel bundle, cache version, metadata, and documentation to `0.1.18`.
 
 ## 0.1.17 - Unified custom group controls
 

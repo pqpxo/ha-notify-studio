@@ -1,4 +1,4 @@
-<!-- version 17 -->
+<!-- version 18 -->
 
 <p align="center">
   <img src="custom_components/notify_studio/brand/logo.png" width="230" alt="Notify Studio logo">
@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-0.1.17-242e42?style=flat-square&v=0.1.17" alt="Version 0.1.17">
+  <img src="https://img.shields.io/badge/version-0.1.18-242e42?style=flat-square&v=0.1.18" alt="Version 0.1.18">
   <img src="https://img.shields.io/badge/Home%20Assistant-2026.5%2B-41BDF5?style=flat-square&logo=home-assistant&logoColor=white" alt="Home Assistant 2026.5 or newer">
   <img src="https://img.shields.io/badge/HACS-Custom%20repository-41BDF5?style=flat-square" alt="HACS custom repository">
 </p>
@@ -19,7 +19,7 @@
 > [!WARNING]
 > Notify Studio is under active development. Review generated YAML before using it in a live automation or script, and take a Home Assistant backup before installing an update.
 
-> **v0.1.17** consolidates custom category and area controls into one button panel and moves member selection into the Manage groups list.
+> **v0.1.18** adds persistent quick-control favourites: show one responsive row by default, pin controls with stars, and expand to see every saved category/area control.
 
 ## What it does
 
@@ -44,7 +44,9 @@ Notify Studio brings the fragmented parts of rich Companion notifications into a
 - Merged-YAML auditing across automations, scripts, alerts, and nested action blocks.
 - Filtering by source type, Home Assistant category, Home Assistant label, notify device, and Notify Studio custom group.
 - Per-instance custom **categories** and **areas** for notification sources, separate from Home Assistant's own registries.
-- One unified custom category/area control panel. Every bulk and individual entity button retains its custom group tag, without repeated outer headings.
+- Responsive quick-control favourites: pin bulk or individual category/area controls with stars, keep one row visible by default, and expand for the full control list.
+- Favourite choices are stored locally per Home Assistant instance and are automatically trimmed from the end when a narrower desktop viewport cannot fit them.
+- On mobile, up to seven favourite controls are kept in one swipeable horizontal row.
 - Runtime enable/disable controls for matching automation entities and confirmed test runs for automations and scripts.
 - A separate recent-activity column for notification-related automations and scripts.
 - In-memory operational logs for test sends, YAML generation, source scans, templates, custom-group activity, run-test requests, warnings, and backend errors.
@@ -222,7 +224,7 @@ Commit that bundle with every frontend source change, as HACS users do not run a
 
 ## Versioning and HACS releases
 
-Use GitHub branches and pull requests for changes. After merging a version into `main`, publish a GitHub Release such as `v0.1.17`. HACS uses published releases to offer version selection and rollback.
+Use GitHub branches and pull requests for changes. After merging a version into `main`, publish a GitHub Release such as `v0.1.18`. HACS uses published releases to offer version selection and rollback.
 
 See [HACS_RELEASE_WORKFLOW.md](HACS_RELEASE_WORKFLOW.md) for the release checklist.
 

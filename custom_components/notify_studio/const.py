@@ -1,11 +1,11 @@
-# version 17
+# version 18
 """Constants for Notify Studio."""
 
 from __future__ import annotations
 
 DOMAIN = "notify_studio"
 NAME = "Notify Studio"
-VERSION = "0.1.17"
+VERSION = "0.1.18"
 
 PANEL_URL_PATH = "notify-studio"
 PANEL_COMPONENT_NAME = "notify-studio-panel"
@@ -39,6 +39,8 @@ WS_RENAME_CUSTOM_GROUP = f"{DOMAIN}/rename_custom_group"
 WS_DELETE_CUSTOM_GROUP = f"{DOMAIN}/delete_custom_group"
 WS_SET_CUSTOM_GROUP_MEMBERSHIPS = f"{DOMAIN}/set_custom_group_memberships"
 WS_SET_CUSTOM_GROUP_MEMBERS = f"{DOMAIN}/set_custom_group_members"
+WS_LIST_CUSTOM_GROUP_FAVORITES = f"{DOMAIN}/list_custom_group_favorites"
+WS_SET_CUSTOM_GROUP_FAVORITES = f"{DOMAIN}/set_custom_group_favorites"
 WS_TOGGLE_CUSTOM_GROUP = f"{DOMAIN}/toggle_custom_group"
 WS_TOGGLE_AUTOMATION = f"{DOMAIN}/toggle_automation"
 WS_RUN_RUNNABLE = f"{DOMAIN}/run_runnable"

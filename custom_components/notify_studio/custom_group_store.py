@@ -1,5 +1,5 @@
-# version 16
-"""Persistent per-instance custom categories and areas for Notify Studio."""
+# version 18
+"""Persistent per-instance custom categories, areas, and quick controls."""
 
 from __future__ import annotations
 
@@ -20,6 +20,9 @@ from .const import (
 )
 
 _GROUP_KINDS = {"category", "area"}
+_MAX_FAVORITE_CONTROLS = 100
+_GROUP_CONTROL_SUFFIX = "::group"
+_MEMBER_CONTROL_SEPARATOR = "::member::"
 
 
 class CustomGroupValidationError(ValueError):
@@ -107,11 +110,57 @@ def _normalise_group(value: Any) -> dict[str, Any] | None:
     }
 
 
+def _group_control_key(group_id: str) -> str:
+    """Return the stable key for a category or area bulk control."""
+    return f"{group_id}{_GROUP_CONTROL_SUFFIX}"
+
+
+def _member_control_key(group_id: str, source_key: str) -> str:
+    """Return the stable key for an individual grouped notification source."""
+    return f"{group_id}{_MEMBER_CONTROL_SEPARATOR}{source_key}"
+
+
+def _valid_control_keys(groups: list[dict[str, Any]]) -> set[str]:
+    """Return every currently valid group or member control key."""
+    keys: set[str] = set()
+    for group in groups:
+        group_id = str(group["id"])
+        keys.add(_group_control_key(group_id))
+        for member in group["members"]:
+            keys.add(_member_control_key(group_id, str(member["source_key"])))
+    return keys
+
+
+def _normalise_favorite_control_keys(
+    value: Any,
+    groups: list[dict[str, Any]],
+) -> list[str]:
+    """Return valid, unique favorite control keys in their saved display order."""
+    if not isinstance(value, list):
+        return []
+
+    valid_keys = _valid_control_keys(groups)
+    favorites: list[str] = []
+    seen: set[str] = set()
+    for item in value:
+        if not isinstance(item, str):
+            continue
+        key = item.strip()
+        if not key or key in seen or key not in valid_keys:
+            continue
+        seen.add(key)
+        favorites.append(key)
+        if len(favorites) >= _MAX_FAVORITE_CONTROLS:
+            break
+    return favorites
+
+
 class NotifyStudioCustomGroupStore:
     """Versioned storage wrapper for user-defined categories and areas.
 
-    These groups are local to a single Home Assistant instance and are not
-    connected to Home Assistant's native Area, Category, or Label registries.
+    Groups and quick-control favorites are local to a single Home Assistant
+    instance. They never modify Home Assistant's native Area, Category, or
+    Label registries.
     """
 
     def __init__(self, hass: HomeAssistant) -> None:
@@ -122,15 +171,15 @@ class NotifyStudioCustomGroupStore:
             CUSTOM_GROUP_STORE_KEY,
         )
 
-    async def _async_data(self) -> dict[str, list[dict[str, Any]]]:
-        """Load and repair stored custom groups."""
+    async def _async_data(self) -> dict[str, Any]:
+        """Load and repair stored groups and saved quick-control favorites."""
         data = await self._store.async_load()
         if not isinstance(data, Mapping):
-            return {"groups": []}
+            return {"groups": [], "favorite_control_keys": []}
 
         raw_groups = data.get("groups", [])
         if not isinstance(raw_groups, list):
-            return {"groups": []}
+            raw_groups = []
 
         groups: list[dict[str, Any]] = []
         seen_ids: set[str] = set()
@@ -140,7 +189,14 @@ class NotifyStudioCustomGroupStore:
                 continue
             seen_ids.add(group["id"])
             groups.append(group)
-        return {"groups": groups}
+
+        return {
+            "groups": groups,
+            "favorite_control_keys": _normalise_favorite_control_keys(
+                data.get("favorite_control_keys", []),
+                groups,
+            ),
+        }
 
     @staticmethod
     def _sorted(groups: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -150,10 +206,46 @@ class NotifyStudioCustomGroupStore:
             key=lambda item: (str(item["kind"]), str(item["name"]).casefold()),
         )
 
+    @staticmethod
+    def _storage_payload(
+        groups: list[dict[str, Any]],
+        favorite_control_keys: list[str],
+    ) -> dict[str, Any]:
+        """Build a clean payload and prune favorites for removed controls."""
+        return {
+            "groups": groups,
+            "favorite_control_keys": _normalise_favorite_control_keys(
+                favorite_control_keys,
+                groups,
+            ),
+        }
+
     async def async_list(self) -> list[dict[str, Any]]:
         """Return all custom groups in a stable order."""
         data = await self._async_data()
         return self._sorted(data["groups"])
+
+    async def async_list_favorite_controls(self) -> list[str]:
+        """Return favorite quick-control keys in the user-selected order."""
+        data = await self._async_data()
+        return deepcopy(data["favorite_control_keys"])
+
+    async def async_set_favorite_controls(self, control_keys: list[str]) -> list[str]:
+        """Persist favorite controls after validating they still exist."""
+        if len(control_keys) > _MAX_FAVORITE_CONTROLS:
+            raise CustomGroupValidationError(
+                f"A maximum of {_MAX_FAVORITE_CONTROLS} favorite controls can be stored."
+            )
+
+        requested: list[str] = []
+        for index, key in enumerate(control_keys):
+            requested.append(_require_string(key, f"favorite_control_keys[{index}]"))
+
+        data = await self._async_data()
+        favorites = _normalise_favorite_control_keys(requested, data["groups"])
+        if favorites != data["favorite_control_keys"]:
+            await self._store.async_save(self._storage_payload(data["groups"], favorites))
+        return deepcopy(favorites)
 
     async def async_get(self, group_id: str) -> dict[str, Any]:
         """Return one custom group or raise a clear validation error."""
@@ -195,7 +287,9 @@ class NotifyStudioCustomGroupStore:
             "updated_at": timestamp,
         }
         groups = [*data["groups"], record]
-        await self._store.async_save({"groups": groups})
+        await self._store.async_save(
+            self._storage_payload(groups, data["favorite_control_keys"])
+        )
         return deepcopy(record)
 
     async def async_rename(self, *, group_id: str, name: str) -> dict[str, Any]:
@@ -230,18 +324,22 @@ class NotifyStudioCustomGroupStore:
         current["name"] = name
         current["updated_at"] = _now()
         groups[index] = current
-        await self._store.async_save({"groups": groups})
+        await self._store.async_save(
+            self._storage_payload(groups, data["favorite_control_keys"])
+        )
         return deepcopy(current)
 
     async def async_delete(self, group_id: str) -> None:
-        """Delete a custom category or area and its local memberships."""
+        """Delete a custom category or area and all related quick controls."""
         group_id = _require_string(group_id, "group_id")
         data = await self._async_data()
         groups = [dict(item) for item in data["groups"]]
         retained = [item for item in groups if item["id"] != group_id]
         if len(retained) == len(groups):
             raise CustomGroupValidationError("The selected custom category or area no longer exists.")
-        await self._store.async_save({"groups": retained})
+        await self._store.async_save(
+            self._storage_payload(retained, data["favorite_control_keys"])
+        )
 
     async def async_set_source_memberships(
         self,
@@ -284,9 +382,10 @@ class NotifyStudioCustomGroupStore:
                 changed = True
 
         if changed:
-            await self._store.async_save({"groups": groups})
+            await self._store.async_save(
+                self._storage_payload(groups, data["favorite_control_keys"])
+            )
         return self._sorted(groups)
-
 
     async def async_set_group_members(
         self,
@@ -319,7 +418,9 @@ class NotifyStudioCustomGroupStore:
             current["members"] = normalised_members
             current["updated_at"] = _now()
             groups[index] = current
-            await self._store.async_save({"groups": groups})
+            await self._store.async_save(
+                self._storage_payload(groups, data["favorite_control_keys"])
+            )
         return self._sorted(groups)
 
 
