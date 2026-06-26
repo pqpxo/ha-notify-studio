@@ -1,10 +1,11 @@
-<!-- version 19 -->
+<!-- version 20 -->
+
 # Notify Studio
 
-Build, test, template, organise, audit, and diagnose rich Home Assistant Companion notifications.
+## v0.1.20 highlights
 
-## v0.1.19 highlights
+- Favourite quick-control stars are now clean standalone icons, with no circular gold border.
+- The Logs view now uses a practical desktop layout: controls on the left and responsive log cards on the right.
+- Log cards fill available space and stack neatly on smaller displays.
 
-- Quick-control buttons now use a shared height across the one-row favourites bar and expanded layout.
-- Long source names are limited to two lines, while state text stays contained on one line.
-- The expand/collapse control matches the exact height of every quick-control tile.
+See `README.md` for installation, features, and release guidance.

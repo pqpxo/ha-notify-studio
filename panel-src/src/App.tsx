@@ -1,4 +1,4 @@
-// version 19
+// version 20
 import { type CSSProperties, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { callWs } from "./api";
@@ -42,7 +42,7 @@ interface CustomGroupControl {
 }
 
 const EMPTY_PREVIEW: PreviewResponse = { rendered: {}, errors: {} };
-const LOGO_URL = "/notify_studio_static/notify-studio-logo.png?v=0.1.19";
+const LOGO_URL = "/notify_studio_static/notify-studio-logo.png?v=0.1.20";
 const QUICK_CONTROL_MIN_WIDTH = 220;
 const QUICK_CONTROL_GAP = 10;
 const QUICK_CONTROL_TOGGLE_WIDTH = 50;
@@ -1455,11 +1455,21 @@ export default function App({ hass }: AppProps) {
       <div className="ns-template-grid">{templates.map((template) => <article className="ns-card ns-template-card" key={template.id}><div className="ns-card__body ns-template-card__body"><div><h3 className="ns-template-card__title">{template.name}</h3><p className="ns-template-card__meta">{template.description || "No description"}</p></div><div className="ns-chip-row">{template.draft.target_platform && <span className={badgeClass(template.draft.target_platform)}>{platformLabel(template.draft.target_platform)}</span>}<span className="ns-chip">{Array.isArray(template.draft.payload.data?.actions) ? `${template.draft.payload.data?.actions.length} button(s)` : "No buttons"}</span></div><div className="ns-template-card__footer"><button className="ns-button ns-button--quiet ns-button--compact" onClick={() => { setSelectedTemplateId(template.id); applyDraft(template.draft); setTab("compose"); }}>Use</button><button className="ns-button ns-button--quiet ns-button--compact" onClick={() => editTemplate(template)}>Edit</button><button className="ns-button ns-button--quiet ns-button--compact ns-button--danger" onClick={() => void deleteTemplate(template)}>Delete</button></div></div></article>)}</div>
     </section>}
 
-    {tab === "logs" && <section className="ns-list">
-      <section className="ns-card"><div className="ns-card__head"><div><h2 className="ns-card__title">Notify Studio logs</h2><p className="ns-muted">Operational events from Notify Studio, including run-test requests and backend errors. This in-memory list clears when Home Assistant restarts.</p></div><div className="ns-card__actions"><button className="ns-button ns-button--tab ns-button--compact" onClick={() => void loadLogs()} disabled={logsLoading}>{logsLoading ? "Loading…" : "Refresh"}</button><button className="ns-button ns-button--quiet ns-button--compact" onClick={() => void clearLogs()} disabled={logsLoading}>Clear logs</button></div></div><div className="ns-card__body"><div className="ns-log-filter"><Field label="Level"><select value={logLevelFilter} onChange={(event) => setLogLevelFilter(event.target.value as "" | LogLevel)}><option value="">All levels</option><option value="error">Errors</option><option value="warning">Warnings</option><option value="info">Information</option></select></Field></div></div></section>
-      {logsLoading && <div className="ns-empty">Loading Notify Studio application logs…</div>}
-      {!logsLoading && !visibleLogs.length && <div className="ns-empty">No Notify Studio events match this filter yet. Use Run test, Send test, or Scan now to create diagnostic entries.</div>}
-      {!logsLoading && visibleLogs.length > 0 && <section className="ns-log-list">{visibleLogs.map((entry, index) => <article className={`ns-card ns-log-entry ns-log-entry--${entry.level}`} key={`${entry.timestamp}:${entry.event}:${index}`}><div className="ns-log-entry__head"><div><span className={logBadgeClass(entry.level)}>{logLevelLabel(entry.level)}</span><strong>{entry.message}</strong></div><time dateTime={entry.timestamp}>{formatDate(entry.timestamp)}</time></div>{entry.entity_id && <code className="ns-log-entry__entity">{entry.entity_id}</code>}{entry.detail && <p className="ns-log-entry__detail">{entry.detail}</p>}<span className="ns-log-entry__event">{entry.event.replaceAll("_", " ")}</span></article>)}</section>}
+    {tab === "logs" && <section className="ns-logs-layout">
+      <aside className="ns-card ns-logs-sidebar">
+        <div className="ns-card__head"><h2 className="ns-card__title">Notify Studio logs</h2></div>
+        <div className="ns-card__body">
+          <p className="ns-muted">Operational events from Notify Studio. This in-memory list clears when Home Assistant restarts.</p>
+          <div className="ns-log-filter"><Field label="Level"><select value={logLevelFilter} onChange={(event) => setLogLevelFilter(event.target.value as "" | LogLevel)}><option value="">All levels</option><option value="error">Errors</option><option value="warning">Warnings</option><option value="info">Information</option></select></Field></div>
+          <div className="ns-log-sidebar-actions"><button className="ns-button ns-button--tab ns-button--compact" onClick={() => void loadLogs()} disabled={logsLoading}>{logsLoading ? "Loading…" : "Refresh"}</button><button className="ns-button ns-button--quiet ns-button--compact" onClick={() => void clearLogs()} disabled={logsLoading}>Clear logs</button></div>
+        </div>
+      </aside>
+      <section className="ns-logs-content" aria-label="Notify Studio log events">
+        <div className="ns-logs-content__head"><div><h2>Recent activity</h2><p>{visibleLogs.length} event{visibleLogs.length === 1 ? "" : "s"}{logLevelFilter ? ` matching ${logLevelLabel(logLevelFilter).toLowerCase()}` : ""}</p></div></div>
+        {logsLoading && <div className="ns-empty">Loading Notify Studio application logs…</div>}
+        {!logsLoading && !visibleLogs.length && <div className="ns-empty">No Notify Studio events match this filter yet. Use Run test, Send test, or Scan now to create diagnostic entries.</div>}
+        {!logsLoading && visibleLogs.length > 0 && <section className="ns-log-list">{visibleLogs.map((entry, index) => <article className={`ns-card ns-log-entry ns-log-entry--${entry.level}`} key={`${entry.timestamp}:${entry.event}:${index}`}><div className="ns-log-entry__head"><div><span className={logBadgeClass(entry.level)}>{logLevelLabel(entry.level)}</span><strong>{entry.message}</strong></div><time dateTime={entry.timestamp}>{formatDate(entry.timestamp)}</time></div>{entry.entity_id && <code className="ns-log-entry__entity">{entry.entity_id}</code>}{entry.detail && <p className="ns-log-entry__detail">{entry.detail}</p>}<span className="ns-log-entry__event">{entry.event.replaceAll("_", " ")}</span></article>)}</section>}
+      </section>
     </section>}
 
     {tab === "audit" && <>
