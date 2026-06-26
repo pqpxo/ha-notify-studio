@@ -1,19 +1,19 @@
-<!-- version 22 -->
+<!-- version 23 -->
 
 # Changelog
 
-## 0.1.22 - Reliable quick controls and theme-aware surfaces
+## 0.1.23 - Reliable actions and resilient favourites
 
-- Fixed quick-control capacity recalculation when leaving and returning to Notifications. The hidden panel is no longer measured at zero width, so saved favourites continue to show at the available desktop capacity rather than collapsing to one control.
-- Restored correct favourite selection limits after navigation, allowing additional controls to be starred whenever the current quick row has space.
-- Applied one Home Assistant theme-derived control surface to standard buttons, quick controls, cards, and action buttons. Manage groups, Scan now, Run test, and View Automation now use the same themed background as favourite controls.
-- Replaced remaining fixed accent colours in buttons, custom-area tags, status chips, and favourite-star controls with Home Assistant theme variables.
-- Bumped the frontend cache URL and project metadata to `0.1.22`.
+- Replaced browser-native confirmation prompts with an in-panel confirmation dialog for **Run Test**, **View Automation**, **View Script**, and **Automations**. This avoids browser-dialog suppression that could make those controls appear unresponsive.
+- Run Test now waits for Home Assistant to accept the requested service call before reporting success or an error in Notify Studio.
+- Editor navigation now uses Home Assistant's frontend navigation helper when available, with an in-panel route-event fallback.
+- Hardened quick-control capacity measurement after moving between pages: hidden or incomplete layout reads are ignored, and capacity is measured again after the Notifications panel finishes rendering.
+- Kept favourite stars gold and increased their visual prominence.
+- Standardized action labels to title case, including **Manage Groups**, **Scan Now**, **Run Test**, and **Send Test**.
+- Standard buttons and quick controls share the same active-theme surface. Card header divider lines are removed.
+- Bumped frontend cache, manifest, package, documentation, and integration version metadata to `0.1.23`.
 
-## 0.1.21 - Persistent quick controls and visual refinement
+## 0.1.22 - Theme-aware quick controls
 
-- Fixed quick-control favourites being removed during panel load or responsive layout changes. Saved favourites now remain in Home Assistant storage across restarts; smaller displays temporarily show only the controls that fit.
-- Increased the favourite-star icon size.
-- Applied the same `color-mix(in srgb, var(--primary-color) 11%, var(--card-background-color))` background to every quick-control button.
-- Added `rgba(0, 0, 0, 0.35) 0px 5px 15px` shadows to standard buttons, quick controls, and Notify Studio cards.
-- Bumped the frontend cache URL and project metadata to `0.1.21`.
+- Added Home Assistant theme-derived control surfaces for buttons, cards, and quick controls.
+- Fixed favourites persistence across restart and responsive layout changes.

@@ -684,7 +684,10 @@ async def websocket_run_runnable(
             domain,
             service,
             data,
-            blocking=False,
+            # Wait until Home Assistant accepts the service call. This gives the
+            # panel a deterministic response instead of an apparently inert
+            # Run Test button when a service call is rejected immediately.
+            blocking=True,
             context=Context(user_id=connection.user.id),
         )
     except HomeAssistantError as err:

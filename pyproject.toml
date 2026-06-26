@@ -1,7 +1,7 @@
-# version 22
+# version 23
 [project]
 name = "notify-studio"
-version = "0.1.22"
+version = "0.1.23"
 description = "A Home Assistant HACS integration for composing and auditing rich notifications."
 requires-python = ">=3.13"
 

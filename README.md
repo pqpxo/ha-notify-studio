@@ -1,4 +1,4 @@
-<!-- version 22 -->
+<!-- version 23 -->
 
 <p align="center">
   <img src="custom_components/notify_studio/brand/logo.png" width="230" alt="Notify Studio logo">
@@ -11,21 +11,15 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-0.1.22-242e42?style=flat-square&v=0.1.22" alt="Version 0.1.22">
+  <img src="https://img.shields.io/badge/version-0.1.23-242e42?style=flat-square&v=0.1.23" alt="Version 0.1.23">
   <img src="https://img.shields.io/badge/Home%20Assistant-2026.5%2B-41BDF5?style=flat-square&logo=home-assistant&logoColor=white" alt="Home Assistant 2026.5 or newer">
   <img src="https://img.shields.io/badge/HACS-Custom%20repository-41BDF5?style=flat-square" alt="HACS custom repository">
-</p>
-
-<p align="center">
-  <a href="http://SWAKES.co.uk">SWAKES.co.uk</a>
-  &nbsp;|&nbsp;
-  <a href="https://makes.swakes.co.uk/">Blog</a>
 </p>
 
 > [!WARNING]
 > Notify Studio is under active development. Review generated YAML before using it in a live automation or script, and take a Home Assistant backup before installing an update.
 
-> **v0.1.22** fixes quick-control capacity after tab navigation and makes buttons and panel surfaces follow the active Home Assistant theme.
+> **v0.1.23** adds reliable in-panel confirmations for action buttons, robust quick-control sizing after page changes, gold favourite stars, and theme-aware control surfaces.
 
 ## What it does
 
@@ -230,7 +224,7 @@ Commit that bundle with every frontend source change, as HACS users do not run a
 
 ## Versioning and HACS releases
 
-Use GitHub branches and pull requests for changes. After merging a version into `main`, publish a GitHub Release such as `v0.1.22`. HACS uses published releases to offer version selection and rollback.
+Use GitHub branches and pull requests for changes. After merging a version into `main`, publish a GitHub Release such as `v0.1.23`. HACS uses published releases to offer version selection and rollback.
 
 See [HACS_RELEASE_WORKFLOW.md](HACS_RELEASE_WORKFLOW.md) for the release checklist.
 

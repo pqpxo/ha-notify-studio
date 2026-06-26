@@ -1,5 +1,5 @@
-// version 22
-import { type CSSProperties, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+// version 23
+import { type CSSProperties, type ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { callWs } from "./api";
 import { panelStyles } from "./styles";
@@ -41,9 +41,16 @@ interface CustomGroupControl {
   member?: CustomGroupMember;
 }
 
+interface ConfirmationRequest {
+  title: string;
+  message: string;
+  confirmLabel: string;
+  onConfirm: () => void | Promise<void>;
+}
+
 const EMPTY_PREVIEW: PreviewResponse = { rendered: {}, errors: {} };
-const LOGO_URL = "/notify_studio_static/notify-studio-logo.png?v=0.1.22";
-const QUICK_CONTROL_MIN_WIDTH = 220;
+const LOGO_URL = "/notify_studio_static/notify-studio-logo.png?v=0.1.23";
+const QUICK_CONTROL_MIN_WIDTH = 170;
 const QUICK_CONTROL_GAP = 10;
 const QUICK_CONTROL_TOGGLE_WIDTH = 50;
 
@@ -87,11 +94,11 @@ function badgeClass(platform: Platform): string {
 
 function actionRouteLabel(route: ActionRouteType): string {
   switch (route) {
-    case "script": return "Run script";
-    case "service": return "Run Home Assistant action";
-    case "uri": return "Open URI / dashboard";
-    case "reply": return "Ask for text reply";
-    default: return "Send event only";
+    case "script": return "Run Script";
+    case "service": return "Run Home Assistant Action";
+    case "uri": return "Open URI / Dashboard";
+    case "reply": return "Ask for Text Reply";
+    default: return "Send Event Only";
   }
 }
 
@@ -212,6 +219,8 @@ export default function App({ hass }: AppProps) {
   const [templateDescription, setTemplateDescription] = useState("");
   const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
   const [liveMessage, setLiveMessage] = useState("");
+  const [confirmation, setConfirmation] = useState<ConfirmationRequest | null>(null);
+  const [confirmationBusy, setConfirmationBusy] = useState(false);
   const previewRequestRef = useRef(0);
   const quickControlsPanelRef = useRef<HTMLDivElement | null>(null);
 
@@ -330,6 +339,27 @@ export default function App({ hass }: AppProps) {
     window.alert(messageText);
   }, [announce]);
 
+  const requestConfirmation = useCallback((request: ConfirmationRequest) => {
+    setConfirmation(request);
+  }, []);
+
+  const cancelConfirmation = useCallback(() => {
+    if (!confirmationBusy) setConfirmation(null);
+  }, [confirmationBusy]);
+
+  const confirmPendingAction = useCallback(async () => {
+    if (!confirmation) return;
+    setConfirmationBusy(true);
+    try {
+      await confirmation.onConfirm();
+      setConfirmation(null);
+    } catch (error) {
+      showError(error, "The requested action could not be completed.");
+    } finally {
+      setConfirmationBusy(false);
+    }
+  }, [confirmation, showError]);
+
   const loadCore = useCallback(async () => {
     const activeHass = hassRef.current;
     if (!activeHass) return;
@@ -402,44 +432,63 @@ export default function App({ hass }: AppProps) {
     void saveFavoriteGroupControls(next, isFavorite ? "Quick control removed from favorites." : "Quick control added to favorites.");
   };
 
-  useEffect(() => {
-    // The quick-control panel only exists on Notifications. Watching the
-    // unmounted panel previously let ResizeObserver report a zero width while
-    // another tab was open, which reduced the favourite limit to one.
+  useLayoutEffect(() => {
+    // Measure only after the Notifications panel has been laid out. A hidden or
+    // transitioning panel can briefly report a tiny width; those readings must
+    // never shrink the saved quick-control selection to a single visible item.
     if (tab !== "audit" || !customGroupControls.length) return undefined;
 
     const element = quickControlsPanelRef.current;
     if (!element) return undefined;
 
+    let animationFrame = 0;
+    const delayedMeasurements: number[] = [];
+
     const updateCapacity = () => {
       if (!element.isConnected) return;
 
-      const isMobile = window.matchMedia("(max-width: 700px)").matches;
-      if (isMobile) {
+      if (window.matchMedia("(max-width: 700px)").matches) {
         setQuickControlCapacity((current) => current === 7 ? current : 7);
         return;
       }
 
-      const width = element.getBoundingClientRect().width;
-      if (width <= 0) return;
+      const width = Math.max(element.clientWidth, element.getBoundingClientRect().width);
+      // Ignore incomplete layout reads. The next ResizeObserver or scheduled
+      // measurement will update capacity once the panel has its real width.
+      if (width < 480) return;
 
-      const availableWidth = Math.max(1, width - QUICK_CONTROL_TOGGLE_WIDTH - QUICK_CONTROL_GAP);
-      const desktopCapacity = Math.max(
+      const availableWidth = Math.max(
         1,
-        Math.floor((availableWidth + QUICK_CONTROL_GAP) / (QUICK_CONTROL_MIN_WIDTH + QUICK_CONTROL_GAP)),
+        width - QUICK_CONTROL_TOGGLE_WIDTH - QUICK_CONTROL_GAP - 28,
+      );
+      const desktopCapacity = Math.min(
+        7,
+        Math.max(
+          1,
+          Math.floor((availableWidth + QUICK_CONTROL_GAP) / (QUICK_CONTROL_MIN_WIDTH + QUICK_CONTROL_GAP)),
+        ),
       );
       setQuickControlCapacity((current) => current === desktopCapacity ? current : desktopCapacity);
     };
 
-    const animationFrame = window.requestAnimationFrame(updateCapacity);
-    const observer = new ResizeObserver(updateCapacity);
+    const scheduleMeasurement = () => {
+      window.cancelAnimationFrame(animationFrame);
+      animationFrame = window.requestAnimationFrame(updateCapacity);
+    };
+
+    scheduleMeasurement();
+    delayedMeasurements.push(window.setTimeout(updateCapacity, 80));
+    delayedMeasurements.push(window.setTimeout(updateCapacity, 260));
+
+    const observer = new ResizeObserver(scheduleMeasurement);
     observer.observe(element);
-    window.addEventListener("resize", updateCapacity);
+    window.addEventListener("resize", scheduleMeasurement);
 
     return () => {
       window.cancelAnimationFrame(animationFrame);
+      delayedMeasurements.forEach((timer) => window.clearTimeout(timer));
       observer.disconnect();
-      window.removeEventListener("resize", updateCapacity);
+      window.removeEventListener("resize", scheduleMeasurement);
     };
   }, [customGroupControls.length, tab]);
 
@@ -921,17 +970,38 @@ export default function App({ hass }: AppProps) {
     );
   };
 
+  const navigateTo = useCallback((path: string) => {
+    const activeHass = hassRef.current as (HomeAssistant & { navigate?: (target: string) => void }) | undefined;
+    if (typeof activeHass?.navigate === "function") {
+      activeHass.navigate(path);
+      return;
+    }
+
+    // Custom panels have live access to Home Assistant's frontend window. This
+    // route event keeps navigation inside Home Assistant instead of forcing a
+    // browser reload when the helper is not exposed on the hass object.
+    window.history.pushState({}, "", path);
+    window.dispatchEvent(new CustomEvent("location-changed", { detail: { replace: false } }));
+  }, []);
+
   const openAutomations = () => {
-    if (!window.confirm("Do you want to open Automations?")) return;
-    window.location.assign("/config/automation/dashboard");
+    requestConfirmation({
+      title: "Open Automations?",
+      message: "Open the Home Assistant Automations dashboard?",
+      confirmLabel: "Open Automations",
+      onConfirm: () => navigateTo("/config/automation/dashboard"),
+    });
   };
 
   const openRunnableEditor = (runnable: RunnableSummary) => {
-    const kindLabel = runnable.kind === "automation" ? "automation" : "script";
-    if (!window.confirm(`Do you want to view this ${kindLabel}?`)) return;
-
+    const kindLabel = runnable.kind === "automation" ? "Automation" : "Script";
     const editorId = runnable.id ?? runnable.entity_id.replace(`${runnable.kind}.`, "");
-    window.location.assign(`/config/${runnable.kind}/edit/${encodeURIComponent(String(editorId))}`);
+    requestConfirmation({
+      title: `View ${kindLabel}?`,
+      message: `Open the Home Assistant editor for “${runnable.name}”?`,
+      confirmLabel: `View ${kindLabel}`,
+      onConfirm: () => navigateTo(`/config/${runnable.kind}/edit/${encodeURIComponent(String(editorId))}`),
+    });
   };
 
   const updateRunnable = (entityId: string, patch: Partial<RunnableSummary>) => {
@@ -959,25 +1029,33 @@ export default function App({ hass }: AppProps) {
     }
   };
 
-  const runRunnable = async (runnable: RunnableSummary) => {
-    if (!hassRef.current) return;
-    const kind = runnable.kind === "automation" ? "automation" : "script";
-    const conditionNote = runnable.kind === "automation"
-      ? " Its conditions will be bypassed for this manual test."
-      : "";
-    const confirmation = `Run “${runnable.name}” now? This queues its configured ${kind} actions and may control real devices.${conditionNote}`;
-    if (!window.confirm(confirmation)) return;
-    try {
-      const result = await callWs<{ entity_id: string; queued: boolean; conditions_skipped: boolean }>(hassRef.current, "notify_studio/run_runnable", {
-        entity_id: runnable.entity_id,
-      });
-      announce(`${runnable.name} was queued for execution${result.conditions_skipped ? " with conditions bypassed" : ""}.`);
-      window.setTimeout(() => {
-        void loadRecentPushRunnables();
-      }, 900);
-    } catch (error) {
-      showError(error, `Unable to run ${runnable.name}.`);
+  const executeRunRunnable = async (runnable: RunnableSummary) => {
+    if (!hassRef.current) {
+      throw new Error("Notify Studio is not connected to Home Assistant yet.");
     }
+
+    const result = await callWs<{ entity_id: string; queued: boolean; conditions_skipped: boolean }>(
+      hassRef.current,
+      "notify_studio/run_runnable",
+      { entity_id: runnable.entity_id },
+    );
+    announce(`${runnable.name} was queued for execution${result.conditions_skipped ? " with conditions bypassed" : ""}.`);
+    window.setTimeout(() => {
+      void loadRecentPushRunnables();
+    }, 900);
+  };
+
+  const runRunnable = (runnable: RunnableSummary) => {
+    const kind = runnable.kind === "automation" ? "Automation" : "Script";
+    const conditionNote = runnable.kind === "automation"
+      ? " Top-level conditions are bypassed for this manual test."
+      : "";
+    requestConfirmation({
+      title: `Run ${kind} Test?`,
+      message: `Run “${runnable.name}” now? This can control real devices.${conditionNote}`,
+      confirmLabel: "Run Test",
+      onConfirm: () => executeRunRunnable(runnable),
+    });
   };
 
   const updateNotificationAction = (index: number, patch: Partial<ComposerAction>) => {
@@ -1188,7 +1266,7 @@ export default function App({ hass }: AppProps) {
             <div className="ns-action-card__head"><strong>Button {index + 1}</strong>{notificationActions.length > 1 && <button type="button" className="ns-button ns-button--quiet ns-button--compact ns-button--danger" onClick={() => removeNotificationAction(index)}>Remove</button>}</div>
             <div className="ns-form-grid">
               <Field label="Button label"><input value={notificationAction.title} onChange={(event) => updateNotificationAction(index, { title: event.target.value })} placeholder="e.g. Open gate" /></Field>
-              <Field label="Button action"><select value={notificationAction.route} onChange={(event) => changeActionRoute(index, event.target.value as ActionRouteType)}><option value="event">Send event only</option><option value="script">Run script</option><option value="service">Run Home Assistant action</option><option value="uri">Open URI / dashboard</option><option value="reply">Ask for text reply</option></select></Field>
+              <Field label="Button action"><select value={notificationAction.route} onChange={(event) => changeActionRoute(index, event.target.value as ActionRouteType)}><option value="event">Send Event Only</option><option value="script">Run Script</option><option value="service">Run Home Assistant Action</option><option value="uri">Open URI / Dashboard</option><option value="reply">Ask for Text Reply</option></select></Field>
               {notificationAction.route !== "uri" && <Field label="Action ID"><input value={notificationAction.id} onChange={(event) => updateNotificationAction(index, { id: event.target.value })} placeholder="Unique event ID" /></Field>}
               {notificationAction.route === "uri" && <Field label="URI" full><input value={notificationAction.uri ?? ""} onChange={(event) => updateNotificationAction(index, { uri: event.target.value })} placeholder="/lovelace/cameras, app://package, https://example.com" /></Field>}
               {notificationAction.route === "script" && <Field label="Script"><select value={notificationAction.scriptEntityId ?? ""} onChange={(event) => updateNotificationAction(index, { scriptEntityId: event.target.value })}><option value="">Choose a script…</option>{scripts.map((script) => <option key={script.entity_id} value={script.entity_id}>{script.name} · {script.entity_id}</option>)}</select></Field>}
@@ -1203,7 +1281,7 @@ export default function App({ hass }: AppProps) {
             {notificationAction.route === "script" && !scripts.length && <p className="ns-help">No script entities are currently available. Create or reload a script, then reload this page.</p>}
           </article>)}
         </div>
-        <div className="ns-action-list__footer"><span className="ns-help">{notificationActions.length} of {maxActions} available {maxActions === 3 ? "Android buttons" : "Apple buttons"}.</span>{notificationActions.length < maxActions && <button type="button" className="ns-button ns-button--quiet ns-button--compact" onClick={addNotificationAction}>Add button</button>}</div>
+        <div className="ns-action-list__footer"><span className="ns-help">{notificationActions.length} of {maxActions} available {maxActions === 3 ? "Android buttons" : "Apple buttons"}.</span>{notificationActions.length < maxActions && <button type="button" className="ns-button ns-button--quiet ns-button--compact" onClick={addNotificationAction}>Add Button</button>}</div>
       </>}
     </section>;
   };
@@ -1247,7 +1325,7 @@ export default function App({ hass }: AppProps) {
       </div>
       <div className="ns-card__footer">
         {runtime?.kind === "automation" && <button className={`ns-button ns-button--tab ns-button--compact ns-button--state ${runtime.enabled ? "is-enabled" : "is-disabled"}`} onClick={() => void toggleAutomation(runtime, !runtime.enabled)}>{runtime.enabled ? "Enabled" : "Disabled"}</button>}
-        {runtime?.supports_run && <button className="ns-button ns-button--quiet ns-button--compact" onClick={() => void runRunnable(runtime)}>Run test</button>}
+        {runtime?.supports_run && <button className="ns-button ns-button--quiet ns-button--compact" onClick={() => void runRunnable(runtime)}>Run Test</button>}
         {runtime && <button className="ns-button ns-button--quiet ns-button--compact" onClick={() => openRunnableEditor(runtime)}>{runtime.kind === "automation" ? "View Automation" : "View Script"}</button>}
       </div>
     </article>;
@@ -1263,10 +1341,10 @@ export default function App({ hass }: AppProps) {
     const allEnabled = groupState.automations > 0 && groupState.enabled === groupState.automations;
     const desiredEnabled = !allEnabled;
     const title = isGroupControl
-      ? (groupState.automations === 0 ? "No automations" : desiredEnabled ? "Enable all" : "Disable all")
+      ? (groupState.automations === 0 ? "No Automations" : desiredEnabled ? "Enable All" : "Disable All")
       : control.member?.name ?? "Notification source";
     const status = isGroupControl
-      ? (groupState.automations === 0 ? "Add an automation source" : `All automations · ${groupState.enabled}/${groupState.automations} enabled`)
+      ? (groupState.automations === 0 ? "Add an Automation Source" : `All Automations · ${groupState.enabled}/${groupState.automations} Enabled`)
       : runtime?.kind === "automation"
         ? (runtime.enabled ? "Enabled" : "Disabled")
         : runtime?.kind === "script"
@@ -1363,7 +1441,7 @@ export default function App({ hass }: AppProps) {
             <div><strong>{group.name}</strong><span>{group.members.length} assigned notification source{group.members.length === 1 ? "" : "s"}</span></div>
             <div className="ns-card__actions ns-custom-group-manager__item-actions">
               <button type="button" className={`ns-button ns-button--quiet ns-button--compact ${selecting ? "ns-button--active" : ""}`} onClick={() => startCustomGroupSelection(group)} disabled={customGroupBusy === "selection"}>
-                {selecting ? "Selecting entities" : "Select entities"}
+                {selecting ? "Selecting Entities" : "Select Entities"}
               </button>
               <button type="button" className="ns-button ns-button--quiet ns-button--compact" onClick={() => void renameCustomGroup(group)} disabled={customGroupBusy === "selection"}>Rename</button>
               <button type="button" className="ns-button ns-button--quiet ns-button--compact ns-button--danger" onClick={() => void deleteCustomGroup(group)} disabled={customGroupBusy === "selection"}>Delete</button>
@@ -1432,7 +1510,7 @@ export default function App({ hass }: AppProps) {
           {renderPlatformOptions()}
           {renderActionableOptions()}
           <div className="ns-actions">
-            <button className="ns-button ns-button--tab" onClick={() => void sendTest()} disabled={busy !== null}>{busy === "test" ? "Sending…" : "Send test"}</button>
+            <button className="ns-button ns-button--tab" onClick={() => void sendTest()} disabled={busy !== null}>{busy === "test" ? "Sending…" : "Send Test"}</button>
             <button className="ns-button ns-button--tab" onClick={startNewTemplate} disabled={busy !== null}>Save Template</button>
             <button className="ns-button ns-button--tab" onClick={() => void generateYaml()} disabled={busy !== null}>{busy === "yaml" ? "Generating…" : "Generate YAML"}</button>
           </div>
@@ -1451,10 +1529,10 @@ export default function App({ hass }: AppProps) {
     </section>}
 
     {tab === "templates" && <section className="ns-list">
-      <div className="ns-card"><div className="ns-card__head"><h2 className="ns-card__title">{editingTemplateId ? "Edit template" : "Create template"}</h2></div><div className="ns-card__body">
+      <div className="ns-card"><div className="ns-card__head"><h2 className="ns-card__title">{editingTemplateId ? "Edit Template" : "Create Template"}</h2></div><div className="ns-card__body">
         <p className="ns-muted">Templates are stored in Home Assistant’s private integration storage. They capture the current composer fields and selected button routes, but not a device target.</p>
         <div className="ns-form-grid"><Field label="Template name"><input value={templateName} onChange={(event) => setTemplateName(event.target.value)} placeholder="e.g. Front door alert" /></Field><Field label="Description"><input value={templateDescription} onChange={(event) => setTemplateDescription(event.target.value)} placeholder="Optional reminder of when to use it" /></Field></div>
-        <div className="ns-actions"><button className="ns-button" onClick={() => void saveTemplate()} disabled={busy !== null}>{busy === "template" ? "Saving…" : editingTemplateId ? "Update template" : "Save Template"}</button><button className="ns-button ns-button--quiet" onClick={() => { setEditingTemplateId(null); setTemplateName(""); setTemplateDescription(""); }}>New template</button></div>
+        <div className="ns-actions"><button className="ns-button" onClick={() => void saveTemplate()} disabled={busy !== null}>{busy === "template" ? "Saving…" : editingTemplateId ? "Update Template" : "Save Template"}</button><button className="ns-button ns-button--quiet" onClick={() => { setEditingTemplateId(null); setTemplateName(""); setTemplateDescription(""); }}>New Template</button></div>
       </div></div>
       {!templates.length && <div className="ns-empty">No templates saved yet. Build a notification in Compose, then save it here.</div>}
       <div className="ns-template-grid">{templates.map((template) => <article className="ns-card ns-template-card" key={template.id}><div className="ns-card__body ns-template-card__body"><div><h3 className="ns-template-card__title">{template.name}</h3><p className="ns-template-card__meta">{template.description || "No description"}</p></div><div className="ns-chip-row">{template.draft.target_platform && <span className={badgeClass(template.draft.target_platform)}>{platformLabel(template.draft.target_platform)}</span>}<span className="ns-chip">{Array.isArray(template.draft.payload.data?.actions) ? `${template.draft.payload.data?.actions.length} button(s)` : "No buttons"}</span></div><div className="ns-template-card__footer"><button className="ns-button ns-button--quiet ns-button--compact" onClick={() => { setSelectedTemplateId(template.id); applyDraft(template.draft); setTab("compose"); }}>Use</button><button className="ns-button ns-button--quiet ns-button--compact" onClick={() => editTemplate(template)}>Edit</button><button className="ns-button ns-button--quiet ns-button--compact ns-button--danger" onClick={() => void deleteTemplate(template)}>Delete</button></div></div></article>)}</div>
@@ -1466,13 +1544,13 @@ export default function App({ hass }: AppProps) {
         <div className="ns-card__body">
           <p className="ns-muted">Operational events from Notify Studio. This in-memory list clears when Home Assistant restarts.</p>
           <div className="ns-log-filter"><Field label="Level"><select value={logLevelFilter} onChange={(event) => setLogLevelFilter(event.target.value as "" | LogLevel)}><option value="">All levels</option><option value="error">Errors</option><option value="warning">Warnings</option><option value="info">Information</option></select></Field></div>
-          <div className="ns-log-sidebar-actions"><button className="ns-button ns-button--tab ns-button--compact" onClick={() => void loadLogs()} disabled={logsLoading}>{logsLoading ? "Loading…" : "Refresh"}</button><button className="ns-button ns-button--quiet ns-button--compact" onClick={() => void clearLogs()} disabled={logsLoading}>Clear logs</button></div>
+          <div className="ns-log-sidebar-actions"><button className="ns-button ns-button--tab ns-button--compact" onClick={() => void loadLogs()} disabled={logsLoading}>{logsLoading ? "Loading…" : "Refresh"}</button><button className="ns-button ns-button--quiet ns-button--compact" onClick={() => void clearLogs()} disabled={logsLoading}>Clear Logs</button></div>
         </div>
       </aside>
       <section className="ns-logs-content" aria-label="Notify Studio log events">
         <div className="ns-logs-content__head"><div><h2>Recent activity</h2><p>{visibleLogs.length} event{visibleLogs.length === 1 ? "" : "s"}{logLevelFilter ? ` matching ${logLevelLabel(logLevelFilter).toLowerCase()}` : ""}</p></div></div>
         {logsLoading && <div className="ns-empty">Loading Notify Studio application logs…</div>}
-        {!logsLoading && !visibleLogs.length && <div className="ns-empty">No Notify Studio events match this filter yet. Use Run test, Send test, or Scan now to create diagnostic entries.</div>}
+        {!logsLoading && !visibleLogs.length && <div className="ns-empty">No Notify Studio events match this filter yet. Use Run Test, Send Test, or Scan Now to create diagnostic entries.</div>}
         {!logsLoading && visibleLogs.length > 0 && <section className="ns-log-list">{visibleLogs.map((entry, index) => <article className={`ns-card ns-log-entry ns-log-entry--${entry.level}`} key={`${entry.timestamp}:${entry.event}:${index}`}><div className="ns-log-entry__head"><div><span className={logBadgeClass(entry.level)}>{logLevelLabel(entry.level)}</span><strong>{entry.message}</strong></div><time dateTime={entry.timestamp}>{formatDate(entry.timestamp)}</time></div>{entry.entity_id && <code className="ns-log-entry__entity">{entry.entity_id}</code>}{entry.detail && <p className="ns-log-entry__detail">{entry.detail}</p>}<span className="ns-log-entry__event">{entry.event.replaceAll("_", " ")}</span></article>)}</section>}
       </section>
     </section>}
@@ -1482,7 +1560,7 @@ export default function App({ hass }: AppProps) {
       {renderCustomGroupManager()}
       <section className="notify-studio__notifications-layout">
         <div className="notify-studio__notifications-main">
-          <section className="ns-card"><div className="ns-card__head"><div><h2 className="ns-card__title">Notifications</h2><p className="ns-muted">Review notification sources in merged YAML, organise them with Notify Studio-only categories and areas, and run or enable matching automations.</p></div><div className="ns-notifications-toolbar"><button type="button" className="ns-button ns-button--quiet" onClick={() => setCustomGroupManagerOpen(true)}>Manage groups</button><button type="button" className="ns-button ns-button--tab" onClick={() => void loadAudit()} disabled={auditLoading}>{auditLoading ? "Scanning…" : "Scan now"}</button></div></div><div className="ns-card__body"><div className="ns-filter-grid">
+          <section className="ns-card"><div className="ns-card__head"><div><h2 className="ns-card__title">Notifications</h2><p className="ns-muted">Review notification sources in merged YAML, organise them with Notify Studio-only categories and areas, and run or enable matching automations.</p></div><div className="ns-notifications-toolbar"><button type="button" className="ns-button ns-button--quiet" onClick={() => setCustomGroupManagerOpen(true)}>Manage Groups</button><button type="button" className="ns-button ns-button--tab" onClick={() => void loadAudit()} disabled={auditLoading}>{auditLoading ? "Scanning…" : "Scan Now"}</button></div></div><div className="ns-card__body"><div className="ns-filter-grid">
             <Field label="Type"><select value={auditSourceFilter} onChange={(event) => setAuditSourceFilter(event.target.value as "" | "automation" | "script")}><option value="">All sources</option><option value="automation">Automation</option><option value="script">Script</option></select></Field>
             <Field label="Home Assistant category"><select value={auditCategoryFilter} onChange={(event) => setAuditCategoryFilter(event.target.value)}><option value="">All categories</option>{auditFilterOptions.categories.map((category) => <option key={category} value={category}>{category}</option>)}</select></Field>
             <Field label="Home Assistant label"><select value={auditLabelFilter} onChange={(event) => setAuditLabelFilter(event.target.value)}><option value="">All labels</option>{auditFilterOptions.labels.map((label) => <option key={label} value={label}>{label}</option>)}</select></Field>
@@ -1504,6 +1582,16 @@ export default function App({ hass }: AppProps) {
       </section>
     </>}
 
+    {confirmation && <div className="ns-modal-backdrop" role="presentation">
+      <section className="ns-card ns-confirmation-dialog" role="dialog" aria-modal="true" aria-labelledby="notify-studio-confirmation-title" aria-describedby="notify-studio-confirmation-message">
+        <div className="ns-card__head"><h2 id="notify-studio-confirmation-title" className="ns-card__title">{confirmation.title}</h2></div>
+        <div className="ns-card__body"><p id="notify-studio-confirmation-message" className="ns-confirmation-dialog__message">{confirmation.message}</p></div>
+        <div className="ns-card__footer ns-confirmation-dialog__footer">
+          <button type="button" className="ns-button ns-button--quiet" onClick={cancelConfirmation} disabled={confirmationBusy}>Cancel</button>
+          <button type="button" className="ns-button ns-button--tab" onClick={() => void confirmPendingAction()} disabled={confirmationBusy}>{confirmationBusy ? "Working…" : confirmation.confirmLabel}</button>
+        </div>
+      </section>
+    </div>}
 
   </main>;
 }

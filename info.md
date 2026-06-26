@@ -1,9 +1,9 @@
-<!-- version 22 -->
+<!-- version 23 -->
 
 # Notify Studio
 
-## v0.1.22 highlights
+## v0.1.23 highlights
 
-- Quick-control favourites retain the correct capacity after navigating between panel pages.
-- Favourite selection remains available whenever the current quick row has room.
-- Buttons, quick controls, and panels now inherit their surfaces and accents from the active Home Assistant theme.
+- In-panel confirmations keep Run Test and editor-navigation buttons responsive in Home Assistant.
+- Quick-control capacity is remeasured safely after switching panel pages.
+- Favourite stars remain gold while buttons and panels inherit the active Home Assistant theme.
