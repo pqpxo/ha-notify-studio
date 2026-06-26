@@ -1,4 +1,4 @@
-// version 12
+// version 13
 export const panelStyles = `
 .notify-studio {
   --ns-radius: 18px;
@@ -98,6 +98,22 @@ export const panelStyles = `
 .ns-recent-item__head { display:flex; align-items:center; justify-content:space-between; gap:8px; min-width:0; }
 .ns-recent-item strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:.92rem; }
 .ns-recent-item > span { color:var(--secondary-text-color); font-size:.82rem; }
+.ns-log-filter { max-width:260px; }
+.ns-log-list { max-width:var(--ns-page-width); margin:0 auto; display:grid; gap:10px; }
+.ns-log-entry { display:grid; gap:9px; padding:16px 18px; border-left:3px solid var(--divider-color); }
+.ns-log-entry--info { border-left-color:var(--primary-color); }
+.ns-log-entry--warning { border-left-color:var(--warning-color, #ff9800); }
+.ns-log-entry--error { border-left-color:var(--error-color); }
+.ns-log-entry__head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+.ns-log-entry__head > div { display:flex; align-items:center; flex-wrap:wrap; gap:8px; min-width:0; }
+.ns-log-entry__head strong { font-size:.98rem; overflow-wrap:anywhere; }
+.ns-log-entry time { color:var(--secondary-text-color); font-size:.8rem; white-space:nowrap; }
+.ns-log-entry__entity { width:max-content; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; border:1px solid var(--divider-color); border-radius:8px; padding:5px 7px; background:var(--input-fill-color, color-mix(in srgb, var(--card-background-color) 90%, #000)); color:var(--secondary-text-color); font:.78rem/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.ns-log-entry__detail { margin:0; color:var(--secondary-text-color); line-height:1.45; overflow-wrap:anywhere; }
+.ns-log-entry__event { color:var(--secondary-text-color); font-size:.75rem; letter-spacing:.04em; text-transform:uppercase; }
+.ns-badge--log-info { background:color-mix(in srgb, var(--primary-color) 18%, var(--card-background-color)); color:var(--primary-text-color); }
+.ns-badge--log-warning { background:color-mix(in srgb, var(--warning-color, #ff9800) 16%, var(--card-background-color)); color:var(--primary-text-color); }
+.ns-badge--log-error { background:color-mix(in srgb, var(--error-color) 14%, var(--card-background-color)); color:var(--error-color); }
 .ns-filter-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:0 12px; }
 .ns-audit-group { display:grid; gap:10px; }
 .ns-audit-group > h3 { width:100%; margin:8px 0 0; font-size:1.05rem; }
@@ -114,5 +130,5 @@ export const panelStyles = `
 @media (max-width: 1180px) { .ns-source-grid { grid-template-columns:repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 900px) { .notify-studio { padding:14px; } .notify-studio__grid, .notify-studio__notifications-layout { grid-template-columns:1fr; } .notify-studio__notifications-activity { position:static; } .ns-form-grid { grid-template-columns:1fr; } .ns-field--full { grid-column:auto; } }
 @media (max-width: 700px) { .ns-source-grid { grid-template-columns:1fr; } }
-@media (max-width: 600px) { .notify-studio__header { align-items:flex-start; } .notify-studio__subtitle { display:none; } .ns-card__head, .ns-card__body { padding-left:14px; padding-right:14px; } .ns-row { align-items:flex-start; flex-direction:column; padding:14px; } .notify-studio__tabs { align-items:stretch; } .notify-studio__tab-buttons { width:100%; } .ns-template-picker { grid-template-columns:1fr; } .ns-runtime { grid-template-columns:1fr; } .ns-action-list__footer { align-items:flex-start; flex-direction:column; } }
+@media (max-width: 600px) { .notify-studio__header { align-items:flex-start; } .notify-studio__subtitle { display:none; } .ns-card__head, .ns-card__body { padding-left:14px; padding-right:14px; } .ns-row { align-items:flex-start; flex-direction:column; padding:14px; } .notify-studio__tabs { align-items:stretch; } .notify-studio__tab-buttons { width:100%; } .ns-template-picker { grid-template-columns:1fr; } .ns-runtime { grid-template-columns:1fr; } .ns-action-list__footer { align-items:flex-start; flex-direction:column; } .ns-log-entry__head { align-items:flex-start; flex-direction:column; } }
 `;

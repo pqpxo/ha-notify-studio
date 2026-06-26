@@ -1,5 +1,16 @@
-<!-- version 9 -->
+<!-- version 13 -->
 # Changelog
+
+## 0.1.13 - Run-test diagnostics and application logs
+
+- Added a **Logs** navigation page beside Notifications, Compose, and Templates.
+- Added a bounded in-memory application log for Notify Studio operation records, warnings, and errors.
+- Added `Run test` logging that records rejected, blocked, requested, queued, and service-failure states.
+- Added logging for test notifications, notification scans, YAML generation, templates, automation toggles, and recent-activity scan failures.
+- Updated automation Run test behaviour to bypass top-level conditions, matching Home Assistant's manual trigger behaviour for condition-gated tests.
+- Added clear and level-filter controls for application logs.
+- Detects an already-active `single`-mode automation or script and reports a clear, actionable error instead of silently appearing not to run.
+- Updated version metadata, cache-busting, documentation, and release workflow references to `0.1.13`.
 
 ## 0.1.12 - Button spacing and theme-border refinement
 
@@ -8,47 +19,31 @@
 - Updated compact-button padding to `10px 13px 10px 13px`.
 - Updated repository documentation and issue-tracker URLs for `pqpxo/ha-notify-studio`.
 
+## 0.1.11 - Notification-card refinement
+
+- Updated card heading padding.
+- Removed notification call-detail controls from source cards.
+- Increased source-card title size.
+- Standardised View Automation/View Script labels and Save Template wording.
+
+## 0.1.10 - Notification layout and entity controls
+
+- Set Notifications as the opening page.
+- Added confirmed automation/script editor shortcuts and runtime state controls.
+- Increased dashboard working width and equalised notification-source cards.
 
 ## 0.1.9 - Larger header logo
 
 - Increased the Notify Studio header logo to 90 × 90 pixels.
-- Bumped the panel cache version so Home Assistant loads the updated frontend bundle.
 
+## 0.1.8 - Notifications layout and documentation
 
-## 0.1.9 - Notifications layout and documentation
-
-- Rebuilt the Notifications page as two dedicated desktop columns.
-- Kept the Notifications filters and all notification-source cards in the left column.
-- Moved Recently triggered push activity into its own right-hand column.
-- Retained the three-card audit grid inside the source column on wide displays, with responsive two- and one-card fallbacks.
-- Regenerated the README to reflect the current logo, repository location, navigation, features, installation path, and HACS release workflow.
-- Updated the integration manifest and Config Flow-only setup for Hassfest compatibility.
-- Bumped the panel cache-busting version to `0.1.9`.
-
-## 0.1.7 - Notifications navigation and audit improvements
-
-- Renamed Audit to Notifications and moved it to the first navigation position.
-- Added category, label, source type, and notify-device audit filters.
-- Added category and label display-name resolution for registered runtime entities.
-- Removed the audit grid/list switch and standardised a three-column audit-card layout.
-
-## 0.1.6 - Audit controls and panel refinement
-
-- Removed the standalone Automations navigation tab.
-- Added a browser-compatible Copy fallback and a shortcut to Home Assistant Automations.
-- Moved recent push activity into the Notifications workflow.
-- Added runtime controls and organisation filters to audit results.
-
-## 0.1.5 - Preview and recent activity
-
-- Added live template preview rendering for title and message fields.
-- Added recent notification-related automation and script activity.
-- Simplified the Composer action row.
+- Rebuilt the Notifications page as two dedicated source and recent-activity columns.
+- Regenerated GitHub documentation with the current project structure, logo, custom repository URL, and release workflow.
 
 ## 0.1.3 - Browser bundle compatibility fix
 
 - Fixed the blank panel caused by `ReferenceError: process is not defined`.
-- Replaced `process.env.NODE_ENV` at build time for browser library builds.
 
 ## 0.1.0 - Initial MVP
 

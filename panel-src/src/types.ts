@@ -1,8 +1,9 @@
-// version 7
+// version 13
 export type Platform = "android" | "ios" | "other" | "unknown";
 export type RunnableKind = "automation" | "script";
 export type ActionRouteType = "event" | "script" | "service" | "uri" | "reply";
 export type ActionHandlerType = "event" | "script" | "service" | "reply";
+export type LogLevel = "info" | "warning" | "error";
 
 export interface HassConnection {
   sendMessagePromise<T>(message: Record<string, unknown>): Promise<T>;
@@ -112,7 +113,18 @@ export interface RunnableSummary {
   status: "enabled" | "disabled" | "ready" | "running";
   id?: string | null;
   last_triggered?: string | null;
+  mode?: string | null;
+  current?: number | null;
   supports_run: boolean;
+}
+
+export interface IntegrationLogEntry {
+  timestamp: string;
+  level: LogLevel;
+  event: string;
+  message: string;
+  entity_id?: string;
+  detail?: string;
 }
 
 export interface NotifyHit {

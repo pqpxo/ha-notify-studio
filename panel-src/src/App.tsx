@@ -1,4 +1,4 @@
-// version 12
+// version 13
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { callWs } from "./api";
@@ -10,6 +10,8 @@ import type {
   GeneratedYamlResponse,
   HomeAssistant,
   InfoResponse,
+  IntegrationLogEntry,
+  LogLevel,
   NotificationDraft,
   NotificationPayload,
   NotificationTemplate,
@@ -22,7 +24,7 @@ import type {
   RunnableSummary,
 } from "./types";
 
-type Tab = "compose" | "audit" | "templates";
+type Tab = "compose" | "audit" | "templates" | "logs";
 type AuditGroup = "none" | "source" | "category" | "label" | "device";
 
 interface AppProps {
@@ -30,7 +32,7 @@ interface AppProps {
 }
 
 const EMPTY_PREVIEW: PreviewResponse = { rendered: {}, errors: {} };
-const LOGO_URL = "/notify_studio_static/notify-studio-logo.png?v=0.1.12";
+const LOGO_URL = "/notify_studio_static/notify-studio-logo.png?v=0.1.13";
 
 function slugifyForId(value: string): string {
   return value
@@ -117,6 +119,14 @@ function runtimeBadgeClass(runnable: RunnableSummary): string {
   return `ns-badge ns-badge--${runnable.status}`;
 }
 
+function logBadgeClass(level: LogLevel): string {
+  return `ns-badge ns-badge--log-${level}`;
+}
+
+function logLevelLabel(level: LogLevel): string {
+  return level.charAt(0).toUpperCase() + level.slice(1);
+}
+
 export default function App({ hass }: AppProps) {
   const hassRef = useRef<HomeAssistant | undefined>(hass);
   hassRef.current = hass;
@@ -129,6 +139,9 @@ export default function App({ hass }: AppProps) {
   const [runnables, setRunnables] = useState<RunnableSummary[]>([]);
   const [recentPushRunnables, setRecentPushRunnables] = useState<RecentPushRunnable[]>([]);
   const [recentPushLoading, setRecentPushLoading] = useState(true);
+  const [logs, setLogs] = useState<IntegrationLogEntry[]>([]);
+  const [logsLoading, setLogsLoading] = useState(false);
+  const [logLevelFilter, setLogLevelFilter] = useState<"" | LogLevel>("");
   const [templates, setTemplates] = useState<NotificationTemplate[]>([]);
   const [usage, setUsage] = useState<NotifyUsage[] | null>(null);
   const [auditLoading, setAuditLoading] = useState(false);
@@ -176,6 +189,10 @@ export default function App({ hass }: AppProps) {
   const scripts = useMemo(
     () => runnables.filter((item) => item.kind === "script"),
     [runnables],
+  );
+  const visibleLogs = useMemo(
+    () => (logLevelFilter ? logs.filter((entry) => entry.level === logLevelFilter) : logs),
+    [logLevelFilter, logs],
   );
 
   const auditFilterOptions = useMemo(() => {
@@ -270,6 +287,35 @@ export default function App({ hass }: AppProps) {
     }
   }, []);
 
+  const loadLogs = useCallback(async () => {
+    const activeHass = hassRef.current;
+    if (!activeHass) return;
+    setLogsLoading(true);
+    try {
+      const result = await callWs<IntegrationLogEntry[]>(activeHass, "notify_studio/list_logs");
+      setLogs(result);
+    } catch (error) {
+      showError(error, "Unable to load Notify Studio logs.");
+    } finally {
+      setLogsLoading(false);
+    }
+  }, [showError]);
+
+  const clearLogs = async () => {
+    const activeHass = hassRef.current;
+    if (!activeHass || !window.confirm("Clear the Notify Studio application logs?")) return;
+    setLogsLoading(true);
+    try {
+      const result = await callWs<IntegrationLogEntry[]>(activeHass, "notify_studio/clear_logs");
+      setLogs(result);
+      announce("Notify Studio logs cleared.");
+    } catch (error) {
+      showError(error, "Unable to clear Notify Studio logs.");
+    } finally {
+      setLogsLoading(false);
+    }
+  };
+
   const refresh = useCallback(async () => {
     try {
       await loadCore();
@@ -324,6 +370,12 @@ export default function App({ hass }: AppProps) {
       void loadRecentPushRunnables();
     }
   }, [loadRecentPushRunnables, tab]);
+
+  useEffect(() => {
+    if (tab === "logs") {
+      void loadLogs();
+    }
+  }, [loadLogs, tab]);
 
   const buildPayload = useCallback((): NotificationPayload => {
     const data: Record<string, unknown> = {};
@@ -577,13 +629,16 @@ export default function App({ hass }: AppProps) {
   const runRunnable = async (runnable: RunnableSummary) => {
     if (!hassRef.current) return;
     const kind = runnable.kind === "automation" ? "automation" : "script";
-    const confirmation = `Run “${runnable.name}” now? This queues its configured ${kind} actions and may control real devices.`;
+    const conditionNote = runnable.kind === "automation"
+      ? " Its conditions will be bypassed for this manual test."
+      : "";
+    const confirmation = `Run “${runnable.name}” now? This queues its configured ${kind} actions and may control real devices.${conditionNote}`;
     if (!window.confirm(confirmation)) return;
     try {
-      await callWs<{ entity_id: string; queued: boolean }>(hassRef.current, "notify_studio/run_runnable", {
+      const result = await callWs<{ entity_id: string; queued: boolean; conditions_skipped: boolean }>(hassRef.current, "notify_studio/run_runnable", {
         entity_id: runnable.entity_id,
       });
-      announce(`${runnable.name} was queued for execution.`);
+      announce(`${runnable.name} was queued for execution${result.conditions_skipped ? " with conditions bypassed" : ""}.`);
       window.setTimeout(() => {
         void loadRecentPushRunnables();
       }, 900);
@@ -872,6 +927,7 @@ export default function App({ hass }: AppProps) {
         <button className={`ns-button ns-button--tab ${tab === "audit" ? "is-active" : ""}`} onClick={() => setTab("audit")}>Notifications</button>
         <button className={`ns-button ns-button--tab ${tab === "compose" ? "is-active" : ""}`} onClick={() => setTab("compose")}>Compose</button>
         <button className={`ns-button ns-button--tab ${tab === "templates" ? "is-active" : ""}`} onClick={() => setTab("templates")}>Templates</button>
+        <button className={`ns-button ns-button--tab ${tab === "logs" ? "is-active" : ""}`} onClick={() => setTab("logs")}>Logs</button>
       </div>
     </nav>
 
@@ -917,6 +973,13 @@ export default function App({ hass }: AppProps) {
       </div></div>
       {!templates.length && <div className="ns-empty">No templates saved yet. Build a notification in Compose, then save it here.</div>}
       <div className="ns-template-grid">{templates.map((template) => <article className="ns-card ns-template-card" key={template.id}><div className="ns-card__body ns-template-card__body"><div><h3 className="ns-template-card__title">{template.name}</h3><p className="ns-template-card__meta">{template.description || "No description"}</p></div><div className="ns-chip-row">{template.draft.target_platform && <span className={badgeClass(template.draft.target_platform)}>{platformLabel(template.draft.target_platform)}</span>}<span className="ns-chip">{Array.isArray(template.draft.payload.data?.actions) ? `${template.draft.payload.data?.actions.length} button(s)` : "No buttons"}</span></div><div className="ns-template-card__footer"><button className="ns-button ns-button--quiet ns-button--compact" onClick={() => { setSelectedTemplateId(template.id); applyDraft(template.draft); setTab("compose"); }}>Use</button><button className="ns-button ns-button--quiet ns-button--compact" onClick={() => editTemplate(template)}>Edit</button><button className="ns-button ns-button--quiet ns-button--compact ns-button--danger" onClick={() => void deleteTemplate(template)}>Delete</button></div></div></article>)}</div>
+    </section>}
+
+    {tab === "logs" && <section className="ns-list">
+      <section className="ns-card"><div className="ns-card__head"><div><h2 className="ns-card__title">Notify Studio logs</h2><p className="ns-muted">Operational events from Notify Studio, including run-test requests and backend errors. This in-memory list clears when Home Assistant restarts.</p></div><div className="ns-card__actions"><button className="ns-button ns-button--tab ns-button--compact" onClick={() => void loadLogs()} disabled={logsLoading}>{logsLoading ? "Loading…" : "Refresh"}</button><button className="ns-button ns-button--quiet ns-button--compact" onClick={() => void clearLogs()} disabled={logsLoading}>Clear logs</button></div></div><div className="ns-card__body"><div className="ns-log-filter"><Field label="Level"><select value={logLevelFilter} onChange={(event) => setLogLevelFilter(event.target.value as "" | LogLevel)}><option value="">All levels</option><option value="error">Errors</option><option value="warning">Warnings</option><option value="info">Information</option></select></Field></div></div></section>
+      {logsLoading && <div className="ns-empty">Loading Notify Studio application logs…</div>}
+      {!logsLoading && !visibleLogs.length && <div className="ns-empty">No Notify Studio events match this filter yet. Use Run test, Send test, or Scan now to create diagnostic entries.</div>}
+      {!logsLoading && visibleLogs.length > 0 && <section className="ns-log-list">{visibleLogs.map((entry, index) => <article className={`ns-card ns-log-entry ns-log-entry--${entry.level}`} key={`${entry.timestamp}:${entry.event}:${index}`}><div className="ns-log-entry__head"><div><span className={logBadgeClass(entry.level)}>{logLevelLabel(entry.level)}</span><strong>{entry.message}</strong></div><time dateTime={entry.timestamp}>{formatDate(entry.timestamp)}</time></div>{entry.entity_id && <code className="ns-log-entry__entity">{entry.entity_id}</code>}{entry.detail && <p className="ns-log-entry__detail">{entry.detail}</p>}<span className="ns-log-entry__event">{entry.event.replaceAll("_", " ")}</span></article>)}</section>}
     </section>}
 
     {tab === "audit" && <section className="notify-studio__notifications-layout">

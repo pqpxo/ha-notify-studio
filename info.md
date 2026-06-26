@@ -1,10 +1,10 @@
-<!-- version 9 -->
+<!-- version 13 -->
 # Notify Studio
 
-Build, test, template, and audit rich Home Assistant Companion notifications.
+Build, test, template, audit, and diagnose rich Home Assistant Companion notifications.
 
-## v0.1.9 highlights
+## v0.1.13 highlights
 
-- Reworked the Notifications page into dedicated source and recent-activity columns.
-- Regenerated GitHub documentation with the current project structure, logo, custom repository URL, and release workflow.
-- Corrected the custom integration manifest and config-entry-only setup used by Hassfest validation.
+- Added an in-panel **Logs** page for recent Notify Studio operation records, warnings, and errors.
+- Improved **Run test** reliability by bypassing top-level automation conditions for deliberate manual tests.
+- Shows clear diagnostic entries when an automation is disabled or already running in `single` mode.

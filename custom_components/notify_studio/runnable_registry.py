@@ -1,4 +1,4 @@
-# version 4
+# version 13
 """Runtime automation and script helpers used by Notify Studio."""
 
 from __future__ import annotations
@@ -37,6 +37,8 @@ def _as_summary(state: State, kind: str) -> dict[str, Any]:
         "status": status,
         "id": state.attributes.get("id"),
         "last_triggered": _last_triggered(state),
+        "mode": state.attributes.get("mode"),
+        "current": state.attributes.get("current", 0),
         "supports_run": True,
     }
 

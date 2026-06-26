@@ -1,11 +1,11 @@
-# version 12
+# version 13
 """Constants for Notify Studio."""
 
 from __future__ import annotations
 
 DOMAIN = "notify_studio"
 NAME = "Notify Studio"
-VERSION = "0.1.12"
+VERSION = "0.1.13"
 
 PANEL_URL_PATH = "notify-studio"
 PANEL_COMPONENT_NAME = "notify-studio-panel"
@@ -17,6 +17,7 @@ PANEL_LOGO_FILENAME = "notify-studio-logo.png"
 DATA_REGISTERED = f"{DOMAIN}_registered"
 DATA_TARGETS = f"{DOMAIN}_targets"
 DATA_TEMPLATE_STORE = f"{DOMAIN}_template_store"
+DATA_LOG_STORE = f"{DOMAIN}_log_store"
 
 TEMPLATE_STORE_KEY = f"{DOMAIN}.templates"
 TEMPLATE_STORE_VERSION = 1
@@ -26,6 +27,8 @@ WS_LIST_NOTIFIERS = f"{DOMAIN}/list_notifiers"
 WS_LIST_AUTOMATIONS = f"{DOMAIN}/list_automations"
 WS_LIST_RUNNABLES = f"{DOMAIN}/list_runnables"
 WS_LIST_RECENT_PUSH_RUNNABLES = f"{DOMAIN}/list_recent_push_runnables"
+WS_LIST_LOGS = f"{DOMAIN}/list_logs"
+WS_CLEAR_LOGS = f"{DOMAIN}/clear_logs"
 WS_TOGGLE_AUTOMATION = f"{DOMAIN}/toggle_automation"
 WS_RUN_RUNNABLE = f"{DOMAIN}/run_runnable"
 WS_SCAN_NOTIFY_USAGE = f"{DOMAIN}/scan_notify_usage"

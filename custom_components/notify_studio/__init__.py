@@ -1,4 +1,4 @@
-# version 11
+# version 13
 """Set up the Notify Studio custom integration."""
 
 from __future__ import annotations
@@ -23,6 +23,7 @@ from .const import (
     STATIC_URL_BASE,
     VERSION,
 )
+from .log_store import async_get_log_store
 from .websocket_api import async_register_commands
 
 # Notify Studio is configured exclusively through its Config Flow.
@@ -55,6 +56,11 @@ async def async_setup_entry(hass: HomeAssistant, _entry: ConfigEntry) -> bool:
     )
 
     async_register_commands(hass)
+    async_get_log_store(hass).add(
+        "info",
+        "integration_started",
+        "Notify Studio started.",
+    )
 
     await panel_custom.async_register_panel(
         hass=hass,

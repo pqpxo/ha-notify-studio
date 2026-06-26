@@ -1,4 +1,4 @@
-# version 5
+# version 13
 """Admin-only WebSocket API for Notify Studio."""
 
 from __future__ import annotations
@@ -15,13 +15,15 @@ from homeassistant.helpers.template import Template
 
 from .const import (
     VERSION,
+    WS_CLEAR_LOGS,
     WS_DELETE_TEMPLATE,
     WS_GENERATE_YAML,
     WS_INFO,
     WS_LIST_AUTOMATIONS,
+    WS_LIST_LOGS,
     WS_LIST_NOTIFIERS,
-    WS_LIST_RUNNABLES,
     WS_LIST_RECENT_PUSH_RUNNABLES,
+    WS_LIST_RUNNABLES,
     WS_LIST_TEMPLATES,
     WS_RENDER_PREVIEW,
     WS_RUN_RUNNABLE,
@@ -31,6 +33,7 @@ from .const import (
     WS_TOGGLE_AUTOMATION,
     WS_VALIDATE_PAYLOAD,
 )
+from .log_store import async_get_log_store
 from .notification_schema import (
     PayloadValidationError,
     generate_action_yaml,
@@ -39,10 +42,7 @@ from .notification_schema import (
 from .notifier_registry import async_list_notifiers, async_resolve_target
 from .notify_scanner import async_list_recent_push_runnables, async_scan_notify_usage
 from .runnable_registry import async_list_runnables
-from .template_store import (
-    TemplateValidationError,
-    async_get_template_store,
-)
+from .template_store import TemplateValidationError, async_get_template_store
 
 
 def async_register_commands(hass: HomeAssistant) -> None:
@@ -52,6 +52,8 @@ def async_register_commands(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, websocket_list_automations)
     websocket_api.async_register_command(hass, websocket_list_runnables)
     websocket_api.async_register_command(hass, websocket_list_recent_push_runnables)
+    websocket_api.async_register_command(hass, websocket_list_logs)
+    websocket_api.async_register_command(hass, websocket_clear_logs)
     websocket_api.async_register_command(hass, websocket_toggle_automation)
     websocket_api.async_register_command(hass, websocket_run_runnable)
     websocket_api.async_register_command(hass, websocket_scan_notify_usage)
@@ -106,7 +108,7 @@ async def websocket_list_automations(
     connection: websocket_api.ActiveConnection,
     msg: dict[str, Any],
 ) -> None:
-    """Return automation entities for backwards compatibility with v0.1.1 clients."""
+    """Return automation entities for backwards compatibility with early clients."""
     automations = [
         item for item in async_list_runnables(hass) if item["kind"] == "automation"
     ]
@@ -137,7 +139,40 @@ async def websocket_list_recent_push_runnables(
     try:
         connection.send_result(msg["id"], await async_list_recent_push_runnables(hass))
     except HomeAssistantError as err:
+        async_get_log_store(hass).add(
+            "error",
+            "recent_push_scan_failed",
+            "Unable to load recent push activity.",
+            detail=str(err),
+        )
         connection.send_error(msg["id"], "recent_push_scan_failed", str(err))
+
+
+@websocket_api.websocket_command({vol.Required("type"): WS_LIST_LOGS})
+@websocket_api.require_admin
+@websocket_api.async_response
+async def websocket_list_logs(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Return the bounded in-memory Notify Studio operational log."""
+    connection.send_result(msg["id"], async_get_log_store(hass).list_entries())
+
+
+@websocket_api.websocket_command({vol.Required("type"): WS_CLEAR_LOGS})
+@websocket_api.require_admin
+@websocket_api.async_response
+async def websocket_clear_logs(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Clear the in-memory Notify Studio operational log."""
+    store = async_get_log_store(hass)
+    store.clear()
+    store.add("info", "logs_cleared", "Application logs cleared.")
+    connection.send_result(msg["id"], store.list_entries())
 
 
 @websocket_api.websocket_command(
@@ -156,7 +191,14 @@ async def websocket_toggle_automation(
 ) -> None:
     """Enable or disable an automation entity at runtime."""
     entity_id = msg["entity_id"]
+    store = async_get_log_store(hass)
     if not entity_id.startswith("automation.") or hass.states.get(entity_id) is None:
+        store.add(
+            "warning",
+            "automation_toggle_rejected",
+            "Automation toggle was rejected because the entity was not found.",
+            entity_id=entity_id,
+        )
         connection.send_error(msg["id"], "invalid_automation", "Unknown automation entity.")
         return
 
@@ -170,14 +212,36 @@ async def websocket_toggle_automation(
             context=Context(user_id=connection.user.id),
         )
     except HomeAssistantError as err:
+        store.add(
+            "error",
+            "automation_toggle_failed",
+            "Unable to change the automation state.",
+            entity_id=entity_id,
+            detail=str(err),
+        )
         connection.send_error(msg["id"], "automation_toggle_failed", str(err))
         return
 
     state = hass.states.get(entity_id)
+    store.add(
+        "info",
+        "automation_toggled",
+        f"Automation {'enabled' if msg['enabled'] else 'disabled'}.",
+        entity_id=entity_id,
+    )
     connection.send_result(
         msg["id"],
         {"entity_id": entity_id, "state": state.state if state else None},
     )
+
+
+def _running_count(state: Any) -> int:
+    """Return a safe current-run count from an automation or script state."""
+    value = state.attributes.get("current", 0)
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return 0
 
 
 @websocket_api.websocket_command(
@@ -193,13 +257,36 @@ async def websocket_run_runnable(
     connection: websocket_api.ActiveConnection,
     msg: dict[str, Any],
 ) -> None:
-    """Queue a real automation or script execution after a panel confirmation."""
+    """Queue a manual automation or script run with safe, actionable logging."""
     entity_id = msg["entity_id"]
     state = hass.states.get(entity_id)
+    store = async_get_log_store(hass)
+
     if state is None or not entity_id.startswith(("automation.", "script.")):
-        connection.send_error(msg["id"], "invalid_runnable", "Unknown automation or script entity.")
+        store.add(
+            "warning",
+            "run_test_rejected",
+            "Run test was rejected because the automation or script was not found.",
+            entity_id=entity_id,
+        )
+        connection.send_error(
+            msg["id"],
+            "invalid_runnable",
+            "Unknown automation or script entity.",
+        )
         return
-    if entity_id.startswith("automation.") and state.state != "on":
+
+    domain = "automation" if entity_id.startswith("automation.") else "script"
+    mode = str(state.attributes.get("mode", "single"))
+    current = _running_count(state)
+
+    if domain == "automation" and state.state != "on":
+        store.add(
+            "warning",
+            "run_test_blocked_disabled",
+            "Run test was blocked because the automation is disabled.",
+            entity_id=entity_id,
+        )
         connection.send_error(
             msg["id"],
             "automation_disabled",
@@ -207,13 +294,39 @@ async def websocket_run_runnable(
         )
         return
 
-    domain = "automation" if entity_id.startswith("automation.") else "script"
+    if mode == "single" and current > 0:
+        store.add(
+            "warning",
+            "run_test_blocked_active",
+            "Run test was blocked because this single-mode item is already running.",
+            entity_id=entity_id,
+            detail="Wait for the current run to finish, then try again.",
+        )
+        connection.send_error(
+            msg["id"],
+            "runnable_already_running",
+            "This item is already running in single mode. Wait for it to finish, then try again.",
+        )
+        return
+
     service = "trigger" if domain == "automation" else "turn_on"
     data: dict[str, Any] = {"entity_id": entity_id}
     if domain == "automation":
-        # Normal conditions still apply. The panel intentionally does not offer
-        # a bypass, because Run test should not circumvent user safeguards.
-        data["skip_condition"] = False
+        # A Run test is a deliberate manual execution. Skip top-level conditions
+        # so condition-gated notification automations can be exercised reliably.
+        data["skip_condition"] = True
+
+    store.add(
+        "info",
+        "run_test_requested",
+        "Run test requested.",
+        entity_id=entity_id,
+        detail=(
+            "Automation conditions will be bypassed for this manual test."
+            if domain == "automation"
+            else "Script turn-on action requested."
+        ),
+    )
 
     try:
         await hass.services.async_call(
@@ -224,10 +337,35 @@ async def websocket_run_runnable(
             context=Context(user_id=connection.user.id),
         )
     except HomeAssistantError as err:
+        store.add(
+            "error",
+            "run_test_failed",
+            "Home Assistant rejected the run-test request.",
+            entity_id=entity_id,
+            detail=str(err),
+        )
         connection.send_error(msg["id"], "run_failed", str(err))
         return
 
-    connection.send_result(msg["id"], {"entity_id": entity_id, "queued": True})
+    store.add(
+        "info",
+        "run_test_queued",
+        "Run test queued.",
+        entity_id=entity_id,
+        detail=(
+            "The automation action sequence was requested with conditions bypassed."
+            if domain == "automation"
+            else "The script action sequence was requested."
+        ),
+    )
+    connection.send_result(
+        msg["id"],
+        {
+            "entity_id": entity_id,
+            "queued": True,
+            "conditions_skipped": domain == "automation",
+        },
+    )
 
 
 @websocket_api.websocket_command({vol.Required("type"): WS_SCAN_NOTIFY_USAGE})
@@ -239,10 +377,26 @@ async def websocket_scan_notify_usage(
     msg: dict[str, Any],
 ) -> None:
     """Scan Home Assistant's merged YAML configuration for notify calls."""
+    store = async_get_log_store(hass)
     try:
-        connection.send_result(msg["id"], await async_scan_notify_usage(hass))
+        results = await async_scan_notify_usage(hass)
     except HomeAssistantError as err:
+        store.add(
+            "error",
+            "notification_scan_failed",
+            "Notification source scan failed.",
+            detail=str(err),
+        )
         connection.send_error(msg["id"], "scan_failed", str(err))
+        return
+
+    store.add(
+        "info",
+        "notification_scan_complete",
+        "Notification source scan completed.",
+        detail=f"Found {len(results)} source(s).",
+    )
+    connection.send_result(msg["id"], results)
 
 
 @websocket_api.websocket_command(
@@ -269,7 +423,7 @@ async def websocket_render_preview(
             continue
         try:
             rendered[field] = Template(value, hass).async_render(parse_result=False)
-        except Exception as err:  # Template errors are user-facing preview feedback.
+        except Exception as err:  # User-facing template preview feedback.
             errors[field] = str(err)
 
     connection.send_result(msg["id"], {"rendered": rendered, "errors": errors})
@@ -283,7 +437,9 @@ async def _async_validate_target_payload(
     """Resolve a target and validate a payload before sending or generating YAML."""
     target = await async_resolve_target(hass, target_id)
     if target is None:
-        raise PayloadValidationError("The selected mobile-app target is no longer available.")
+        raise PayloadValidationError(
+            "The selected mobile-app target is no longer available."
+        )
     normalized, warnings = validate_payload(target["platform"], payload)
     return target, normalized, warnings
 
@@ -331,6 +487,7 @@ async def websocket_send_test(
     msg: dict[str, Any],
 ) -> None:
     """Send a validated test notification to one discovered mobile-app target."""
+    store = async_get_log_store(hass)
     try:
         target, normalized, warnings = await _async_validate_target_payload(
             hass, msg["target_id"], msg["payload"]
@@ -343,12 +500,30 @@ async def websocket_send_test(
             context=Context(user_id=connection.user.id),
         )
     except PayloadValidationError as err:
+        store.add(
+            "warning",
+            "test_notification_invalid",
+            "Test notification was rejected because the payload is invalid.",
+            detail=str(err),
+        )
         connection.send_error(msg["id"], "invalid_payload", str(err))
         return
     except HomeAssistantError as err:
+        store.add(
+            "error",
+            "test_notification_failed",
+            "Test notification failed.",
+            detail=str(err),
+        )
         connection.send_error(msg["id"], "send_failed", str(err))
         return
 
+    store.add(
+        "info",
+        "test_notification_sent",
+        "Test notification sent.",
+        detail=f"Target: {target['name']}",
+    )
     connection.send_result(
         msg["id"],
         {"ok": True, "target": target["name"], "warnings": warnings},
@@ -371,6 +546,7 @@ async def websocket_generate_yaml(
     msg: dict[str, Any],
 ) -> None:
     """Generate a notification action and optional actionable handler YAML."""
+    store = async_get_log_store(hass)
     try:
         target, normalized, warnings = await _async_validate_target_payload(
             hass, msg["target_id"], msg["payload"]
@@ -381,9 +557,16 @@ async def websocket_generate_yaml(
             msg.get("action_handlers", []),
         )
     except PayloadValidationError as err:
+        store.add(
+            "warning",
+            "yaml_generation_invalid",
+            "YAML generation was rejected because the payload is invalid.",
+            detail=str(err),
+        )
         connection.send_error(msg["id"], "invalid_payload", str(err))
         return
 
+    store.add("info", "yaml_generated", "Notification YAML generated.")
     connection.send_result(
         msg["id"],
         {"yaml": yaml_output, "warnings": warnings},
@@ -416,11 +599,20 @@ async def websocket_save_template(
     msg: dict[str, Any],
 ) -> None:
     """Create or update a stored notification template."""
+    store = async_get_log_store(hass)
     try:
         saved = await async_get_template_store(hass).async_save(msg["template"])
     except TemplateValidationError as err:
+        store.add(
+            "warning",
+            "template_save_invalid",
+            "Template save was rejected because the template is invalid.",
+            detail=str(err),
+        )
         connection.send_error(msg["id"], "invalid_template", str(err))
         return
+
+    store.add("info", "template_saved", "Notification template saved.")
     connection.send_result(msg["id"], saved)
 
 
@@ -438,9 +630,18 @@ async def websocket_delete_template(
     msg: dict[str, Any],
 ) -> None:
     """Delete a stored notification template."""
+    store = async_get_log_store(hass)
     try:
         await async_get_template_store(hass).async_delete(msg["template_id"])
     except TemplateValidationError as err:
+        store.add(
+            "warning",
+            "template_delete_invalid",
+            "Template deletion was rejected because the template was not found.",
+            detail=str(err),
+        )
         connection.send_error(msg["id"], "invalid_template", str(err))
         return
+
+    store.add("info", "template_deleted", "Notification template deleted.")
     connection.send_result(msg["id"], {"deleted": msg["template_id"]})
