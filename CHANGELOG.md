@@ -1,6 +1,13 @@
-<!-- version 23 -->
+<!-- version 24 -->
 
 # Changelog
+
+## 0.1.24 - Favourite control status alignment
+
+- Added a small theme-aware status circle before the **Enabled** or **Disabled** text in favourite automation controls.
+- Improved favourite control alignment by bringing automation/script titles and state text into line with the group tag.
+- Added a little extra spacing between each group tag and its automation/script title.
+- Bumped frontend cache, manifest, package, documentation, and integration version metadata to `0.1.24`.
 
 ## 0.1.23 - Reliable actions and resilient favourites
 

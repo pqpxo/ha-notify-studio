@@ -1,9 +1,9 @@
-<!-- version 23 -->
+<!-- version 24 -->
 
 # Notify Studio
 
-## v0.1.23 highlights
+## v0.1.24 highlights
 
-- In-panel confirmations keep Run Test and editor-navigation buttons responsive in Home Assistant.
-- Quick-control capacity is remeasured safely after switching panel pages.
-- Favourite stars remain gold while buttons and panels inherit the active Home Assistant theme.
+- Favourite quick controls now show a small green or red status indicator next to Enabled or Disabled.
+- Automation/script titles and state text align with their custom category/area tags.
+- Extra title spacing improves readability within fixed-height favourite controls.

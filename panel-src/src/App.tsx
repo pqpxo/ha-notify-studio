@@ -1,4 +1,4 @@
-// version 23
+// version 24
 import { type CSSProperties, type ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { callWs } from "./api";
@@ -49,7 +49,7 @@ interface ConfirmationRequest {
 }
 
 const EMPTY_PREVIEW: PreviewResponse = { rendered: {}, errors: {} };
-const LOGO_URL = "/notify_studio_static/notify-studio-logo.png?v=0.1.23";
+const LOGO_URL = "/notify_studio_static/notify-studio-logo.png?v=0.1.24";
 const QUICK_CONTROL_MIN_WIDTH = 170;
 const QUICK_CONTROL_GAP = 10;
 const QUICK_CONTROL_TOGGLE_WIDTH = 50;
@@ -1350,6 +1350,9 @@ export default function App({ hass }: AppProps) {
         : runtime?.kind === "script"
           ? "Script"
           : "Unavailable";
+    const automationStatus = !isGroupControl && runtime?.kind === "automation"
+      ? (runtime.enabled ? "enabled" : "disabled")
+      : null;
     const isToggleable = isGroupControl
       ? groupState.automations > 0
       : runtime?.kind === "automation";
@@ -1372,7 +1375,10 @@ export default function App({ hass }: AppProps) {
       >
         <span className={`ns-custom-group-member-button__tag ns-custom-group-member-button__tag--${control.group.kind}`}>{label}: {control.group.name}</span>
         <strong>{title}</strong>
-        <span>{status}</span>
+        <span className="ns-custom-group-member-button__status">
+          {automationStatus && <span className={`ns-custom-group-member-button__status-dot is-${automationStatus}`} aria-hidden="true" />}
+          <span>{status}</span>
+        </span>
       </button>
       <button
         type="button"
