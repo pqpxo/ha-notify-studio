@@ -1,9 +1,9 @@
-<!-- version 21 -->
+<!-- version 22 -->
 
 # Notify Studio
 
-## v0.1.21 highlights
+## v0.1.22 highlights
 
-- Quick-control favourites persist across Home Assistant restarts and responsive layout changes.
-- Larger favourite-star controls.
-- Consistent quick-control backgrounds and stronger panel/button shadows.
+- Quick-control favourites retain the correct capacity after navigating between panel pages.
+- Favourite selection remains available whenever the current quick row has room.
+- Buttons, quick controls, and panels now inherit their surfaces and accents from the active Home Assistant theme.

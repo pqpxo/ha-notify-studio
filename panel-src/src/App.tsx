@@ -1,4 +1,4 @@
-// version 21
+// version 22
 import { type CSSProperties, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { callWs } from "./api";
@@ -42,7 +42,7 @@ interface CustomGroupControl {
 }
 
 const EMPTY_PREVIEW: PreviewResponse = { rendered: {}, errors: {} };
-const LOGO_URL = "/notify_studio_static/notify-studio-logo.png?v=0.1.21";
+const LOGO_URL = "/notify_studio_static/notify-studio-logo.png?v=0.1.22";
 const QUICK_CONTROL_MIN_WIDTH = 220;
 const QUICK_CONTROL_GAP = 10;
 const QUICK_CONTROL_TOGGLE_WIDTH = 50;
@@ -168,7 +168,6 @@ export default function App({ hass }: AppProps) {
   const [favoriteGroupControlKeys, setFavoriteGroupControlKeys] = useState<string[]>([]);
   const [showAllCustomGroupControls, setShowAllCustomGroupControls] = useState(false);
   const [quickControlCapacity, setQuickControlCapacity] = useState(7);
-  const [quickControlCapacityMeasured, setQuickControlCapacityMeasured] = useState(false);
   const [customGroupsLoading, setCustomGroupsLoading] = useState(false);
   const [customGroupManagerOpen, setCustomGroupManagerOpen] = useState(false);
   const [newCustomGroupName, setNewCustomGroupName] = useState("");
@@ -404,30 +403,45 @@ export default function App({ hass }: AppProps) {
   };
 
   useEffect(() => {
+    // The quick-control panel only exists on Notifications. Watching the
+    // unmounted panel previously let ResizeObserver report a zero width while
+    // another tab was open, which reduced the favourite limit to one.
+    if (tab !== "audit" || !customGroupControls.length) return undefined;
+
     const element = quickControlsPanelRef.current;
-    if (!element || !customGroupControls.length) return undefined;
+    if (!element) return undefined;
 
     const updateCapacity = () => {
-      const width = element.getBoundingClientRect().width;
+      if (!element.isConnected) return;
+
       const isMobile = window.matchMedia("(max-width: 700px)").matches;
+      if (isMobile) {
+        setQuickControlCapacity((current) => current === 7 ? current : 7);
+        return;
+      }
+
+      const width = element.getBoundingClientRect().width;
+      if (width <= 0) return;
+
       const availableWidth = Math.max(1, width - QUICK_CONTROL_TOGGLE_WIDTH - QUICK_CONTROL_GAP);
       const desktopCapacity = Math.max(
         1,
         Math.floor((availableWidth + QUICK_CONTROL_GAP) / (QUICK_CONTROL_MIN_WIDTH + QUICK_CONTROL_GAP)),
       );
-      setQuickControlCapacity(isMobile ? 7 : desktopCapacity);
-      setQuickControlCapacityMeasured(true);
+      setQuickControlCapacity((current) => current === desktopCapacity ? current : desktopCapacity);
     };
 
-    updateCapacity();
+    const animationFrame = window.requestAnimationFrame(updateCapacity);
     const observer = new ResizeObserver(updateCapacity);
     observer.observe(element);
     window.addEventListener("resize", updateCapacity);
+
     return () => {
+      window.cancelAnimationFrame(animationFrame);
       observer.disconnect();
       window.removeEventListener("resize", updateCapacity);
     };
-  }, [customGroupControls.length]);
+  }, [customGroupControls.length, tab]);
 
   // Saved favourites are a user preference, not a viewport preference. A
   // narrower browser shows the first controls that fit, but never removes any

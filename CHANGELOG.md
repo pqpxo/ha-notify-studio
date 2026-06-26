@@ -1,6 +1,14 @@
-<!-- version 21 -->
+<!-- version 22 -->
 
 # Changelog
+
+## 0.1.22 - Reliable quick controls and theme-aware surfaces
+
+- Fixed quick-control capacity recalculation when leaving and returning to Notifications. The hidden panel is no longer measured at zero width, so saved favourites continue to show at the available desktop capacity rather than collapsing to one control.
+- Restored correct favourite selection limits after navigation, allowing additional controls to be starred whenever the current quick row has space.
+- Applied one Home Assistant theme-derived control surface to standard buttons, quick controls, cards, and action buttons. Manage groups, Scan now, Run test, and View Automation now use the same themed background as favourite controls.
+- Replaced remaining fixed accent colours in buttons, custom-area tags, status chips, and favourite-star controls with Home Assistant theme variables.
+- Bumped the frontend cache URL and project metadata to `0.1.22`.
 
 ## 0.1.21 - Persistent quick controls and visual refinement
 
