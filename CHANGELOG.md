@@ -1,5 +1,14 @@
-<!-- version 16 -->
+<!-- version 17 -->
 # Changelog
+
+## 0.1.17 - Unified custom group controls
+
+- Moved **Select entities** into the matching custom category/area row in **Manage groups**, beside Rename and Delete.
+- Rebuilt the custom category/area controls as one unified button panel with no outer group headings.
+- Kept the custom category/area pill on every bulk and individual entity button for clear identification.
+- Removed the Notifications-page **Group by** control; filtered sources now remain in one **All notification sources** grid.
+- Kept **Manage groups** and **Scan now** together in one desktop action row.
+- Updated the panel bundle, cache version, metadata, and documentation to `0.1.17`.
 
 ## 0.1.16 - Custom group member controls
 

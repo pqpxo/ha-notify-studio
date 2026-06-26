@@ -1,4 +1,4 @@
-<!-- version 16 -->
+<!-- version 17 -->
 
 <p align="center">
   <img src="custom_components/notify_studio/brand/logo.png" width="230" alt="Notify Studio logo">
@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-0.1.16-242e42?style=flat-square&v=0.1.16" alt="Version 0.1.16">
+  <img src="https://img.shields.io/badge/version-0.1.17-242e42?style=flat-square&v=0.1.17" alt="Version 0.1.17">
   <img src="https://img.shields.io/badge/Home%20Assistant-2026.5%2B-41BDF5?style=flat-square&logo=home-assistant&logoColor=white" alt="Home Assistant 2026.5 or newer">
   <img src="https://img.shields.io/badge/HACS-Custom%20repository-41BDF5?style=flat-square" alt="HACS custom repository">
 </p>
@@ -19,7 +19,7 @@
 > [!WARNING]
 > Notify Studio is under active development. Review generated YAML before using it in a live automation or script, and take a Home Assistant backup before installing an update.
 
-> **v0.1.16** refines custom categories and areas with individual automation controls, direct group-member selection, and non-scrolling notification cards.
+> **v0.1.17** consolidates custom category and area controls into one button panel and moves member selection into the Manage groups list.
 
 ## What it does
 
@@ -44,7 +44,7 @@ Notify Studio brings the fragmented parts of rich Companion notifications into a
 - Merged-YAML auditing across automations, scripts, alerts, and nested action blocks.
 - Filtering by source type, Home Assistant category, Home Assistant label, notify device, and Notify Studio custom group.
 - Per-instance custom **categories** and **areas** for notification sources, separate from Home Assistant's own registries.
-- Full-width custom category/area control sections. Each contains an overall bulk automation toggle plus individual member controls, with the custom group name shown on every control.
+- One unified custom category/area control panel. Every bulk and individual entity button retains its custom group tag, without repeated outer headings.
 - Runtime enable/disable controls for matching automation entities and confirmed test runs for automations and scripts.
 - A separate recent-activity column for notification-related automations and scripts.
 - In-memory operational logs for test sends, YAML generation, source scans, templates, custom-group activity, run-test requests, warnings, and backend errors.
@@ -111,9 +111,9 @@ Templates are kept in Notify Studio's Home Assistant storage. They do not alter 
 Open **Notifications**, then select **Manage groups**.
 
 1. Create a custom **category** or **area** such as `Security`, `Morning routines`, or `Upstairs`.
-2. Use **Select entities** on the relevant custom category or area control.
-3. Tick the source cards you want to include, then choose **Save entities**.
-4. Each category/area control shows its saved source members and an overall automation toggle.
+2. Use **Select entities** beside the relevant group's **Rename** and **Delete** controls.
+3. Tick the source cards you want to include, then choose **Save entities** in the Manage groups panel.
+4. The unified control panel shows saved source members and an overall automation toggle for every group.
 5. Use individual member controls or the overall control to enable or disable assigned **automation** entities.
 
 Custom groups are intentionally separate from Home Assistant's native categories, areas, and labels:
@@ -222,7 +222,7 @@ Commit that bundle with every frontend source change, as HACS users do not run a
 
 ## Versioning and HACS releases
 
-Use GitHub branches and pull requests for changes. After merging a version into `main`, publish a GitHub Release such as `v0.1.16`. HACS uses published releases to offer version selection and rollback.
+Use GitHub branches and pull requests for changes. After merging a version into `main`, publish a GitHub Release such as `v0.1.17`. HACS uses published releases to offer version selection and rollback.
 
 See [HACS_RELEASE_WORKFLOW.md](HACS_RELEASE_WORKFLOW.md) for the release checklist.
 
